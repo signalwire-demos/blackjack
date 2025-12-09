@@ -30,6 +30,9 @@
     "SWML_BASIC_AUTH_PASSWORD": {
       "description": "Basic auth password for SWML endpoints",
       "required": true
+    },
+    "POST_PROMPT_URL": {
+      "description": "Optional URL for post-prompt webhook to receive session summaries"
     }
   },
   "formation": {

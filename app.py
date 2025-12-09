@@ -737,7 +737,7 @@ class BlackjackDealer(AgentBase):
         print(f"Set video URLs to use host: {base_url}")
 
         # Optional post-prompt URL from environment
-        post_prompt_url = os.environ.get("BLACKJACK_POST_PROMPT_URL")
+        post_prompt_url = os.environ.get("POST_PROMPT_URL")
         if post_prompt_url:
             self.set_post_prompt("Summarize the blackjack session including hands played, bets made, and final chip count.")
             self.set_post_prompt_url(post_prompt_url)
