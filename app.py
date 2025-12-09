@@ -7,7 +7,6 @@ Uses stateless architecture with centralized state management
 
 import json
 import random
-import argparse
 import os
 import time
 import requests
@@ -984,31 +983,4 @@ server = create_server()
 app = server.app
 
 if __name__ == "__main__":
-    # Parse command line arguments for port
-    parser = argparse.ArgumentParser(
-        description='Blackjack Dealer - SignalWire Casino Game'
-    )
-    parser.add_argument(
-        '--port', '-p',
-        type=int,
-        default=PORT,
-        help='Port to run the agent on (default: 5000 or $PORT)'
-    )
-
-    args = parser.parse_args()
-
-    print("=" * 60)
-    print("Blackjack Dealer - SignalWire Casino")
-    print("=" * 60)
-    print()
-    print("A professional blackjack dealer ready to deal you in!")
-    print()
-    print("Starting chips: 1000")
-    print("Minimum bet: 10 chips")
-    print("Dealer rules: Hits on 16, Stands on 17")
-    print()
-
-    # Create and run the server with custom port if specified
-    if args.port != PORT:
-        server = create_server(port=args.port)
     server.run()
