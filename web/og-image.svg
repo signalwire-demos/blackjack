@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <!-- Background gradient similar to the game -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d1117;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e3a5f;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGradient)"/>
+  
+  <!-- Playing cards visualization -->
+  <!-- Ace of Spades -->
+  <g transform="translate(250, 200)">
+    <rect x="0" y="0" width="140" height="200" rx="10" fill="white" stroke="#333" stroke-width="2"/>
+    <text x="20" y="40" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="black">A</text>
+    <path d="M70 80 C60 90, 55 100, 55 110 C55 118, 58 122, 65 122 C68 122, 71 121, 74 118 C77 121, 80 122, 83 122 C90 122, 93 118, 93 110 C93 100, 88 90, 78 80 C75 77, 72 77, 70 80 Z" fill="black"/>
+    <text x="120" y="180" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="black" transform="rotate(180, 120, 180)">A</text>
+  </g>
+  
+  <!-- Jack of Hearts -->
+  <g transform="translate(420, 220)">
+    <rect x="0" y="0" width="140" height="200" rx="10" fill="white" stroke="#333" stroke-width="2"/>
+    <text x="20" y="40" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="red">J</text>
+    <text x="60" y="115" font-family="Arial, sans-serif" font-size="48" fill="red">♥</text>
+    <text x="120" y="180" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="red" transform="rotate(180, 120, 180)">J</text>
+  </g>
+  
+  <!-- Title Text -->
+  <text x="600" y="120" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="#FFD700" text-anchor="middle">SignalWire</text>
+  <text x="600" y="200" font-family="Arial, sans-serif" font-size="96" font-weight="bold" fill="white" text-anchor="middle">BLACKJACK</text>
+  
+  <!-- Subtitle -->
+  <text x="600" y="480" font-family="Arial, sans-serif" font-size="32" fill="#FFD700" text-anchor="middle">AI-Powered Dealer • Real-Time Video</text>
+  <text x="600" y="530" font-family="Arial, sans-serif" font-size="28" fill="white" text-anchor="middle">Start with 1000 chips • Vegas-style excitement!</text>
+  
+  <!-- Decorative elements -->
+  <!-- Chips -->
+  <circle cx="850" cy="350" r="40" fill="#FFD700" stroke="white" stroke-width="3"/>
+  <text x="850" y="360" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#333" text-anchor="middle">100</text>
+  
+  <circle cx="920" cy="360" r="40" fill="#FF4444" stroke="white" stroke-width="3"/>
+  <text x="920" y="370" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">50</text>
+  
+  <circle cx="780" cy="360" r="40" fill="#4444FF" stroke="white" stroke-width="3"/>
+  <text x="780" y="370" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">25</text>
+</svg>

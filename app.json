@@ -1,0 +1,57 @@
+{
+  "name": "blackjack-dealer",
+  "description": "SignalWire AI Blackjack Dealer with WebRTC video calling",
+  "keywords": ["signalwire", "ai", "agent", "python", "webrtc", "blackjack", "casino", "game"],
+  "env": {
+    "APP_ENV": {
+      "description": "Application environment",
+      "value": "production"
+    },
+    "SIGNALWIRE_SPACE_NAME": {
+      "description": "SignalWire space name (e.g., 'myspace' or 'myspace.signalwire.com')",
+      "required": true
+    },
+    "SIGNALWIRE_PROJECT_ID": {
+      "description": "SignalWire project ID",
+      "required": true
+    },
+    "SIGNALWIRE_TOKEN": {
+      "description": "SignalWire API token",
+      "required": true
+    },
+    "SWML_PROXY_URL_BASE": {
+      "description": "Public URL base for SWML callbacks (e.g., 'https://myapp.example.com')",
+      "required": true
+    },
+    "SWML_BASIC_AUTH_USER": {
+      "description": "Basic auth username for SWML endpoints",
+      "required": true
+    },
+    "SWML_BASIC_AUTH_PASSWORD": {
+      "description": "Basic auth password for SWML endpoints",
+      "required": true
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "healthchecks": {
+    "web": [
+      {
+        "type": "startup",
+        "name": "port listening",
+        "listening": true,
+        "attempts": 10,
+        "wait": 5,
+        "timeout": 60
+      }
+    ]
+  }
+}
