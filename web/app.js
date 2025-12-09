@@ -141,13 +141,63 @@ function updateGameDisplay() {
     }
 }
 
-function showResult(message, duration = 3000) {
-    resultMessage.textContent = message;
+function showResult(message, duration = 3000, type = '') {
+    const resultText = resultMessage.querySelector('.result-text');
+    if (resultText) {
+        resultText.textContent = message;
+    } else {
+        resultMessage.textContent = message;
+    }
+
+    // Remove any previous type classes
+    resultMessage.classList.remove('win', 'lose', 'push', 'blackjack');
+
+    // Add appropriate class based on message content or explicit type
+    if (type) {
+        resultMessage.classList.add(type);
+    } else if (message.toLowerCase().includes('blackjack')) {
+        resultMessage.classList.add('blackjack');
+        createParticles();
+    } else if (message.toLowerCase().includes('win') || message.toLowerCase().includes('dealer bust')) {
+        resultMessage.classList.add('win');
+        createParticles();
+    } else if (message.toLowerCase().includes('lose') || message.toLowerCase().includes('bust')) {
+        resultMessage.classList.add('lose');
+    } else if (message.toLowerCase().includes('push') || message.toLowerCase().includes('tie')) {
+        resultMessage.classList.add('push');
+    }
+
     resultMessage.classList.add('show');
-    
+
     setTimeout(() => {
         resultMessage.classList.remove('show');
     }, duration);
+}
+
+function createParticles() {
+    const particlesContainer = document.getElementById('particles');
+    if (!particlesContainer) return;
+
+    // Clear existing particles
+    particlesContainer.innerHTML = '';
+
+    // Create particles
+    const colors = ['#ffd700', '#ffea00', '#4CAF50', '#fff'];
+    for (let i = 0; i < 20; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+        particle.style.left = (Math.random() * 200 - 100) + 'px';
+        particle.style.top = (Math.random() * 100 - 50) + 'px';
+        particle.style.animationDelay = (Math.random() * 0.5) + 's';
+        particle.style.transform = `rotate(${Math.random() * 360}deg)`;
+        particlesContainer.appendChild(particle);
+    }
+
+    // Clean up particles after animation
+    setTimeout(() => {
+        particlesContainer.innerHTML = '';
+    }, 1500);
 }
 
 function handleUserEvent(params) {
