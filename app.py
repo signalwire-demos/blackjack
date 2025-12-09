@@ -643,30 +643,13 @@ class BlackjackDealer(AgentBase):
             "dealer",
             "cards"
         ])
-        
-        # Set conversation parameters including video/audio files
-        # Use SWML_PROXY_URL_BASE env var (standard SDK variable) or default to localhost
-        web_root = os.environ.get("SWML_PROXY_URL_BASE")
-        if not web_root:
-            port = int(os.environ.get("PORT", 5000))
-            web_root = f"http://localhost:{port}"
 
+        # Set non-URL conversation parameters
         self.set_params({
             "vad_config": "75",
-            "end_of_speech_timeout": 300,
-            "video_idle_file": f"{web_root}/sigmond_bj_idle.mp4",
-            "video_talking_file": f"{web_root}/sigmond_bj_talking.mp4",
-            "background_file": f"{web_root}/casino.mp3"
+            "end_of_speech_timeout": 300
         })
 
-
-        
-        # Optional post-prompt URL from environment
-        post_prompt_url = os.environ.get("BLACKJACK_POST_PROMPT_URL")
-        if post_prompt_url:
-            self.set_post_prompt("Summarize the conversation, including all the details about the tarot reading.") 
-            self.set_post_prompt_url(post_prompt_url)
-        
         # Initialize global data
         self.set_global_data({
             "assistant_name": "Dealer",
@@ -726,7 +709,42 @@ class BlackjackDealer(AgentBase):
     def _card_name(self, card):
         """Get the display name of a card"""
         return f"{card['rank'].capitalize()} of {card['suit'].capitalize()}"
-    
+
+    def on_swml_request(self, request_data: dict, callback_path: str, request=None) -> dict:
+        """Handle incoming SWML requests and configure the AI agent dynamically"""
+        from typing import Dict
+
+        # Detect host from request for video URLs
+        host = "localhost:5000"
+        protocol = "http"
+
+        if request:
+            # Try to get the host from headers
+            headers = {k.lower(): v for k, v in request.headers.items()}
+            host = headers.get('host', host)
+
+            # Check if we're behind a proxy with x-forwarded-proto
+            protocol = headers.get('x-forwarded-proto', 'https')
+
+            # Override protocol for local development
+            if 'localhost' in host or '127.0.0.1' in host:
+                protocol = 'http'
+
+        # Set video URLs dynamically based on request host
+        base_url = f"{protocol}://{host}"
+        self.set_param("video_idle_file", f"{base_url}/sigmond_bj_idle.mp4")
+        self.set_param("video_talking_file", f"{base_url}/sigmond_bj_talking.mp4")
+        self.set_param("background_file", f"{base_url}/casino.mp3")
+        print(f"Set video URLs to use host: {base_url}")
+
+        # Optional post-prompt URL from environment
+        post_prompt_url = os.environ.get("BLACKJACK_POST_PROMPT_URL")
+        if post_prompt_url:
+            self.set_post_prompt("Summarize the blackjack session including hands played, bets made, and final chip count.")
+            self.set_post_prompt_url(post_prompt_url)
+
+        # Call parent implementation to handle the SWML request
+        return super().on_swml_request(request_data, callback_path, request)
 
 
 HOST = "0.0.0.0"
