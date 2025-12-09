@@ -1,7 +1,7 @@
 // Configuration
-const DESTINATION = '/public/black-jack';  // SignalWire destination
-// Updated SignalWire token
-const STATIC_TOKEN = 'eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwidHlwIjoiU0FUIiwiY2giOiJwdWMuc2lnbmFsd2lyZS5jb20ifQ..7FDHr43vIe-6Kkc8.HL_F2WiHCNV2Uo75HVDng0hKDsY2UhVTMn3UOhel9hMovZS57nS35SXDShgWrw3MXFd7bkbCMtW02y9PBlJH9RNJRcJ-XoR3kUsKEmUbgizPhFc8oRhdNvmcToynrEwlmIeBVX5sV7RqgEAQalPh0IqNXsyLu2XdQ80Qk7lWttG3Kg765JyHQOhvfMZGbcrOWOuX0emerYEAQo_FdDhXg4g7ZGSfqpcPXiNF36QyZN7KROWlCH_k-RPcnBC4Nm15kW-HW8IIUWuCPDUoEcf1xnGZeZSvYyM-PQDmv5YIpqaBNUxbIhbCfQITq3L7T89DmJGwFmFl05cdAFmUTZDQX50S_SvbNaJiYe9yCIcB6R9Q0uJwT89PUDsPpvAdm9a-twq9yQV-BF-4Bpm1Ltr7xxtFiwRL8LawP6Rumc8TynxtZck6CW6EFwLBFSEhF2OsD_Glho7M-ZSiqAAgkj5JK2B_HP_nptOvfjNiGPsFgO1Nctf7vx8TnuNQxd_TjrvQtDPn3yl9vkMY8-OtJbTv-ZxY-N7GI4-xofdr2Jhj.24SjuIJJrV0V6CWh5f33NA';
+// Token and address will be fetched dynamically from /get_token
+let currentToken = null;
+let currentDestination = null;
 const BASE_URL = '/card_images';  // Absolute path from web root
 
 let client;
@@ -342,7 +342,7 @@ function handleUserEvent(params) {
 // Voice commands are handled by the AI agent directly
 // No UI buttons needed for game actions
 
-// Connect to call with static token
+// Connect to call with dynamic token
 async function connectToCall() {
     try {
         // Disable button and show connecting state
@@ -350,16 +350,27 @@ async function connectToCall() {
         connectBtn.textContent = '⏳ Connecting...';
         connectBtn.style.background = 'linear-gradient(135deg, rgba(128, 128, 128, 0.7), rgba(96, 96, 96, 0.7))';
         connectBtn.style.borderColor = 'rgba(128, 128, 128, 0.5)';
-        
+
         eventEntries.innerHTML = '';
         logEvent('Starting new connection...');
-        
-        if (!STATIC_TOKEN || STATIC_TOKEN === 'YOUR_SIGNALWIRE_TOKEN_HERE') {
-            throw new Error('Please update STATIC_TOKEN with your actual SignalWire token');
+
+        statusDiv.textContent = 'Getting token...';
+
+        // Fetch token and address dynamically from the server
+        const tokenResp = await fetch('/get_token');
+        const tokenData = await tokenResp.json();
+
+        if (tokenData.error) {
+            throw new Error(tokenData.error);
         }
-        
+
+        currentToken = tokenData.token;
+        currentDestination = tokenData.address;
+
+        logEvent('Got token', { destination: currentDestination, tokenLength: currentToken.length });
+
         statusDiv.textContent = 'Initializing client...';
-        logEvent('Using static token', { tokenLength: STATIC_TOKEN.length });
+        logEvent('Using dynamic token', { tokenLength: currentToken.length });
 
         // Initialize client with debug options
         // SignalWire should be available on window when using UMD build
@@ -372,16 +383,16 @@ async function connectToCall() {
             SignalWireKeys: SignalWireSDK ? Object.keys(SignalWireSDK) : []
         });
 
-        // Based on the keys, we need to use Fabric
-        if (typeof SignalWireSDK.Fabric === 'function') {
-            client = await SignalWireSDK.Fabric({
-                token: STATIC_TOKEN,
+        // Based on the keys, we need to use Fabric or SignalWire
+        if (typeof SignalWireSDK.SignalWire === 'function') {
+            client = await SignalWireSDK.SignalWire({
+                token: currentToken,
                 logLevel: 'debug',
                 debug: { logWsTraffic: false }
             });
-        } else if (typeof SignalWireSDK.SignalWire === 'function') {
-            client = await SignalWireSDK.SignalWire({
-                token: STATIC_TOKEN,
+        } else if (typeof SignalWireSDK.Fabric === 'function') {
+            client = await SignalWireSDK.Fabric({
+                token: currentToken,
                 logLevel: 'debug',
                 debug: { logWsTraffic: false }
             });
@@ -478,42 +489,39 @@ async function connectToCall() {
             
             // Dial into the room with specific devices
             logEvent('About to call client.dial with params', {
-                to: DESTINATION,
+                to: currentDestination,
                 hasRootElement: !!document.getElementById('video-container'),
                 audio: audioDeviceId ? { deviceId: { exact: audioDeviceId } } : true,
-                video: videoDeviceId ? { deviceId: { exact: videoDeviceId } } : true,
-                extension: 'sigmond_blackjack'
+                video: videoDeviceId ? { deviceId: { exact: videoDeviceId } } : true
             });
-            
+
             roomSession = await client.dial({
-                to: DESTINATION,
+                to: currentDestination,
                 rootElement: document.getElementById('video-container'),
                 audio: audioDeviceId ? { deviceId: { exact: audioDeviceId } } : true,
                 video: videoDeviceId ? { deviceId: { exact: videoDeviceId } } : true,
                 negotiateVideo: true,
                 userVariables: {
                     userName: 'Blackjack Player',
-                    interface: 'raw-sdk-static',
-                    timestamp: new Date().toISOString(),
-                    extension: 'sigmond_blackjack'
+                    interface: 'web-ui',
+                    timestamp: new Date().toISOString()
                 }
             });
         } catch (error) {
             logEvent('Error getting devices', { error: error.message });
             statusDiv.textContent = 'Dialing with browser defaults...';
-            
+
             // Fallback to letting browser choose
             roomSession = await client.dial({
-                to: DESTINATION,
+                to: currentDestination,
                 rootElement: document.getElementById('video-container'),
                 audio: true,
                 video: true,
                 negotiateVideo: true,
                 userVariables: {
                     userName: 'Blackjack Player',
-                    interface: 'raw-sdk-static',
-                    timestamp: new Date().toISOString(),
-                    extension: 'sigmond_blackjack'
+                    interface: 'web-ui',
+                    timestamp: new Date().toISOString()
                 }
             });
         }
