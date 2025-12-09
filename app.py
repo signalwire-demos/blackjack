@@ -961,6 +961,10 @@ def create_server(port=None):
     return server
 
 
+# Create server and expose app for gunicorn
+server = create_server()
+app = server.app
+
 if __name__ == "__main__":
     # Parse command line arguments for port
     parser = argparse.ArgumentParser(
@@ -986,6 +990,7 @@ if __name__ == "__main__":
     print("Dealer rules: Hits on 16, Stands on 17")
     print()
 
-    # Create and run the server
-    server = create_server(port=args.port)
+    # Create and run the server with custom port if specified
+    if args.port != PORT:
+        server = create_server(port=args.port)
     server.run()
