@@ -711,30 +711,17 @@ class BlackjackDealer(AgentBase):
 
     def on_swml_request(self, request_data: dict, callback_path: str, request=None) -> dict:
         """Handle incoming SWML requests and configure the AI agent dynamically"""
-        from typing import Dict
 
-        # Detect host from request for video URLs
-        host = "localhost:5000"
-        protocol = "http"
+        # Get the base URL using SDK's auto-detection from X-Forwarded headers
+        # Falls back to SWML_PROXY_URL_BASE or APP_URL if needed
+        base_url = self.get_full_url(include_auth=False)
 
-        if request:
-            # Try to get the host from headers
-            headers = {k.lower(): v for k, v in request.headers.items()}
-            host = headers.get('host', host)
-
-            # Check if we're behind a proxy with x-forwarded-proto
-            protocol = headers.get('x-forwarded-proto', 'https')
-
-            # Override protocol for local development
-            if 'localhost' in host or '127.0.0.1' in host:
-                protocol = 'http'
-
-        # Set video URLs dynamically based on request host
-        base_url = f"{protocol}://{host}"
-        self.set_param("video_idle_file", f"{base_url}/sigmond_bj_idle.mp4")
-        self.set_param("video_talking_file", f"{base_url}/sigmond_bj_talking.mp4")
-        self.set_param("background_file", f"{base_url}/casino.mp3")
-        print(f"Set video URLs to use host: {base_url}")
+        # Set video URLs dynamically based on detected host
+        if base_url:
+            self.set_param("video_idle_file", f"{base_url}/sigmond_bj_idle.mp4")
+            self.set_param("video_talking_file", f"{base_url}/sigmond_bj_talking.mp4")
+            self.set_param("background_file", f"{base_url}/casino.mp3")
+            print(f"Set video URLs to use host: {base_url}")
 
         # Optional post-prompt URL from environment
         post_prompt_url = os.environ.get("POST_PROMPT_URL")
