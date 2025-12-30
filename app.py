@@ -749,6 +749,31 @@ def get_signalwire_host():
     return f"{space}.signalwire.com"
 
 
+def find_resource_address(addresses, agent_name):
+    """
+    Find the resource address matching /public/{agent_name} from a list of addresses.
+
+    When phone numbers are attached to a handler, multiple addresses exist.
+    We want the resource address (e.g., /public/blackjack) not the phone number address.
+    """
+    expected_address = f"/public/{agent_name}"
+
+    # First, try to find exact match for /public/{agent_name}
+    for addr in addresses:
+        audio_channel = addr.get("channels", {}).get("audio", "")
+        if audio_channel == expected_address:
+            return addr
+
+    # Fallback: find any address that looks like a resource address (not a phone number)
+    for addr in addresses:
+        audio_channel = addr.get("channels", {}).get("audio", "")
+        if audio_channel.startswith("/public/") and not any(c.isdigit() for c in audio_channel.split("/")[-1][:3]):
+            return addr
+
+    # Last resort: return first address
+    return addresses[0] if addresses else None
+
+
 def find_existing_handler(sw_host, auth, agent_name):
     """Find an existing SWML handler by name."""
     try:
@@ -781,13 +806,14 @@ def find_existing_handler(sw_host, auth, agent_name):
                 )
                 if addr_resp.status_code == 200:
                     addresses = addr_resp.json().get("data", [])
-                    if addresses:
+                    resource_addr = find_resource_address(addresses, agent_name)
+                    if resource_addr:
                         return {
                             "id": handler_id,
                             "name": handler_name,
                             "url": handler_url,
-                            "address_id": addresses[0]["id"],
-                            "address": addresses[0]["channels"]["audio"]
+                            "address_id": resource_addr["id"],
+                            "address": resource_addr["channels"]["audio"]
                         }
     except Exception as e:
         print(f"Error checking existing handlers: {e}")
@@ -872,9 +898,10 @@ def setup_swml_handler():
             )
             addr_resp.raise_for_status()
             addresses = addr_resp.json().get("data", [])
-            if addresses:
-                swml_handler_info["address_id"] = addresses[0]["id"]
-                swml_handler_info["address"] = addresses[0]["channels"]["audio"]
+            resource_addr = find_resource_address(addresses, agent_name)
+            if resource_addr:
+                swml_handler_info["address_id"] = resource_addr["id"]
+                swml_handler_info["address"] = resource_addr["channels"]["audio"]
                 print(f"Created SWML handler: {agent_name}")
                 print(f"Call address: {swml_handler_info['address']}")
             else:
