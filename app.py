@@ -285,8 +285,12 @@ class BlackjackDealer(AgentBase):
                 response += resolution_text
             else:
                 response += "\n\nThe hand is now in play. What would you like to do?"
-            
+
             result = SwaigFunctionResult(response)
+
+            # Transition to playing step so hit/stand/double_down tools are available
+            if game_state["player_score"] != 21:
+                result.swml_change_step("playing")
             
             # Save complete state
             add_save_action(result, game_state, global_data)
