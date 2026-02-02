@@ -53,6 +53,7 @@ class BlackjackDealer(AgentBase):
                 "The player has ${global_data.current_chips} chips",
                 "Ask how much they'd like to bet (minimum 10, maximum ${global_data.current_chips})",
                 "When they tell you an amount, call place_bet function with that amount",
+                "After calling place_bet, announce the result to the player and STOP - do NOT call place_bet again or any other function",
             ]) \
             .set_step_criteria("A valid bet has been placed and cards have been dealt") \
             .set_functions(["place_bet"]) \
@@ -62,10 +63,12 @@ class BlackjackDealer(AgentBase):
         default_context.add_step("playing") \
             .add_section("Current Task", "Manage the active blackjack hand") \
             .add_bullets("CRITICAL RULES - YOU MUST FOLLOW THESE", [
+                "WAIT for the player to speak before calling ANY function - do NOT proactively call functions",
                 "The player currently has ${global_data.game_state.player_score} points",
-                "When player says 'hit' or wants another card: YOU MUST CALL THE hit FUNCTION",
-                "When player says 'stand' or wants to stay: YOU MUST CALL THE stand FUNCTION", 
-                "When player says 'double down': YOU MUST CALL THE double_down FUNCTION",
+                "When player says 'hit' or wants another card: call the hit function",
+                "When player says 'stand' or wants to stay: call the stand function",
+                "When player says 'double down': call the double_down function",
+                "Only call ONE function per player request - never call multiple functions at once",
                 "Split is NOT available at this table - do not offer it as an option",
                 "NEVER make up cards or scores - ONLY use what the functions return",
                 "NEVER deal cards yourself - the hit function deals cards",
@@ -85,8 +88,8 @@ class BlackjackDealer(AgentBase):
             .add_bullets("Important Instructions", [
                 "The cards are still on the table - explain what happened in this hand",
                 "Tell the user their chip count and how much they won or lost",
-                "Ask if they want to play another hand",
-                "DO NOT take any bets or start a new game until you call new_hand",
+                "Ask if they want to play another hand and WAIT for their response",
+                "Do NOT call new_hand until the player explicitly says they want to play again",
                 "If the user wants to play again, you MUST call new_hand first",
                 "The new_hand function will reset the table and change to betting step",
                 "Only after calling new_hand can you take a new bet"
@@ -284,7 +287,7 @@ class BlackjackDealer(AgentBase):
                 resolution_text, result_text, winnings = resolve_hand_internally(game_state)
                 response += resolution_text
             else:
-                response += "\n\nThe hand is now in play. What would you like to do?"
+                response += "\n\nThe hand is now in play. Announce the cards to the player and ask if they want to hit, stand, or double down. Do NOT call any function yet - wait for the player to respond."
 
             result = SwaigFunctionResult(response)
 
@@ -388,7 +391,7 @@ class BlackjackDealer(AgentBase):
                 response += resolution_text
             else:
                 # Clearly state the situation and current score
-                response += f"\n\nYou have {game_state['player_score']} points. The hand continues. What would you like to do?"
+                response += f"\n\nYou have {game_state['player_score']} points. The hand continues. Tell the player their new card and total, then wait for them to say hit or stand. Do NOT call any function until the player responds."
                 result_text = None
                 winnings = None
             
