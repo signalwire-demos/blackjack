@@ -37,9 +37,8 @@ scale:
 # Custom Domains
 # ─────────────────────────────────────────────────────────────────────────────
 # Additional domains for this app (requires DNS configuration)
-# custom_domains:
-#   - www.example.com
-#   - api.example.com
+custom_domains:
+  - blackjack.signalwire.me
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Environment-Specific Overrides
