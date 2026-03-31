@@ -948,6 +948,12 @@ def create_server(port=None):
             return JSONResponse({"error": "SignalWire credentials not configured"}, status_code=500)
 
         if not swml_handler_info["address_id"]:
+            print(f"get_token failed: swml_handler_info = {swml_handler_info}")
+            print(f"  SIGNALWIRE_SPACE_NAME={os.getenv('SIGNALWIRE_SPACE_NAME', '(not set)')}")
+            print(f"  SIGNALWIRE_PROJECT_ID={'set' if os.getenv('SIGNALWIRE_PROJECT_ID') else '(not set)'}")
+            print(f"  SIGNALWIRE_TOKEN={'set' if os.getenv('SIGNALWIRE_TOKEN') else '(not set)'}")
+            print(f"  SWML_PROXY_URL_BASE={os.getenv('SWML_PROXY_URL_BASE', '(not set)')}")
+            print(f"  APP_URL={os.getenv('APP_URL', '(not set)')}")
             return JSONResponse({"error": "SWML handler not configured - check startup logs"}, status_code=500)
 
         auth = (project, token)
