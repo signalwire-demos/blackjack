@@ -22,6 +22,24 @@ load_dotenv()
 # Store the SWML handler info for reuse
 swml_handler_info = {"id": None, "address_id": None, "address": None}
 
+# Plain-language definitions for blackjack vocabulary the player may not know.
+GLOSSARY = {
+    "wager": "your bet - the chips you put up before the hand is dealt",
+    "bet": "the chips you put up before the hand is dealt",
+    "ante": "a bet placed before the hand begins",
+    "stakes": "the chips you're betting",
+    "chips": "the tokens used to place bets, like play money",
+    "hit": "take another card to try to get closer to 21",
+    "stand": "stop taking cards and keep your current total",
+    "double down": "double your bet and take exactly one more card",
+    "bust": "going over 21 - you lose the hand automatically",
+    "push": "a tie - your bet is returned and no one wins",
+    "blackjack": "a two-card hand totaling 21 (an ace plus a ten-value card), pays one and a half times your bet",
+    "hole card": "the dealer's face-down card",
+    "twenty one": "the goal of the game - get your cards as close to 21 as possible without going over",
+    "21": "the goal of the game - get your cards as close to 21 as possible without going over",
+}
+
 class BlackjackDealer(AgentBase):
     """Dealer - Your professional blackjack dealer"""
     
@@ -56,7 +74,7 @@ class BlackjackDealer(AgentBase):
                 "After calling place_bet, announce the result to the player and STOP - do NOT call place_bet again or any other function",
             ]) \
             .set_step_criteria("A valid bet has been placed and cards have been dealt") \
-            .set_functions(["place_bet"]) \
+            .set_functions(["place_bet", "explain_term"]) \
             .set_valid_steps(["playing"])
         
         # Playing phase
@@ -78,7 +96,7 @@ class BlackjackDealer(AgentBase):
                 "Only say the player busted if the function explicitly says 'bust'"
             ]) \
             .set_step_criteria("Hand is complete and the winner is determined.") \
-            .set_functions(["hit", "stand", "double_down"]) \
+            .set_functions(["hit", "stand", "double_down", "explain_term"]) \
             .set_valid_steps(["hand_complete", "game_over"])
 
 
@@ -95,7 +113,7 @@ class BlackjackDealer(AgentBase):
                 "Only after calling new_hand can you take a new bet"
             ]) \
             .set_step_criteria("User has indicated whether they want to play another hand") \
-            .set_functions(["new_hand"]) \
+            .set_functions(["new_hand", "explain_term"]) \
             .set_valid_steps(["betting"])
         
         # Game Over phase - when player runs out of chips
@@ -110,7 +128,7 @@ class BlackjackDealer(AgentBase):
                 "Be sympathetic but professional about their loss"
             ]) \
             .set_step_criteria("User has acknowledged the game is over") \
-            .set_functions([]) \
+            .set_functions(["explain_term"]) \
             .set_valid_steps([])
         
         # No resolution phase needed - handled automatically in hit/stand/double_down
@@ -629,6 +647,57 @@ class BlackjackDealer(AgentBase):
             
             return result
         
+        @self.tool(
+            name="explain_term",
+            description=(
+                "Look up the plain-language definition of a word the player didn't understand. "
+                "Call this WHENEVER the player asks what a word means, says they don't understand a term, "
+                "or sounds confused by vocabulary (e.g. 'what does wager mean?', 'what's a push?'). "
+                "After calling, re-ask your previous question using the plain definition."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "term": {
+                        "type": "string",
+                        "description": "The word or phrase the player did not understand"
+                    },
+                    "previous_question": {
+                        "type": "string",
+                        "description": "The question you were asking the player when they got confused, so you can re-ask it in plain words"
+                    }
+                },
+                "required": ["term"]
+            }
+        )
+        def explain_term(args, raw_data):
+            term = args.get("term", "").lower().strip().strip("?.,!'\"")
+            previous_question = args.get("previous_question", "").strip()
+
+            definition = GLOSSARY.get(term)
+            if not definition:
+                for key, val in GLOSSARY.items():
+                    if key in term or term in key:
+                        definition = val
+                        break
+
+            if definition:
+                response = (
+                    f"The word \"{term}\" means: {definition}.\n\n"
+                    f"Tell the player the definition in your own words, then re-ask your previous question "
+                    f"using plain language instead of \"{term}\"."
+                )
+            else:
+                response = (
+                    f"\"{term}\" is not a standard blackjack term in our glossary. "
+                    f"Apologize, briefly explain what you meant in plain words, and continue."
+                )
+
+            if previous_question:
+                response += f"\n\nYour previous question was: \"{previous_question}\". Re-ask it without the confusing word."
+
+            return SwaigFunctionResult(response)
+
         # No need for resolve_hand or reset_game - all handled automatically
         # Configure voice
         self.add_language(
