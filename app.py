@@ -9,10 +9,12 @@ import json
 import random
 import os
 import time
-import requests
+import threading
+import warnings
 from pathlib import Path
-from signalwire_agents import AgentBase, AgentServer
-from signalwire_agents.core.function_result import SwaigFunctionResult
+from signalwire import AgentBase, AgentServer
+from signalwire.core.function_result import SwaigFunctionResult
+from signalwire.rest import RestClient
 from dotenv import load_dotenv
 from fastapi.responses import JSONResponse
 
@@ -21,6 +23,12 @@ load_dotenv()
 
 # Store the SWML handler info for reuse
 swml_handler_info = {"id": None, "address_id": None, "address": None}
+
+# Records *why* SWML handler registration didn't happen, surfaced to /get_token
+# so a silent skip doesn't become a baffling browser error. Cleared on success.
+swml_setup_error = None
+# Serializes the lazy re-registration retry in /get_token.
+_swml_setup_lock = threading.Lock()
 
 # Plain-language definitions for blackjack vocabulary the player may not know.
 GLOSSARY = {
@@ -850,20 +858,17 @@ def find_resource_address(addresses, agent_name):
     return addresses[0] if addresses else None
 
 
-def find_existing_handler(sw_host, auth, agent_name):
-    """Find an existing SWML handler by name."""
-    try:
-        # List all external SWML handlers
-        resp = requests.get(
-            f"https://{sw_host}/api/fabric/resources/external_swml_handlers",
-            auth=auth,
-            headers={"Accept": "application/json"}
-        )
-        if resp.status_code != 200:
-            print(f"Failed to list handlers: {resp.status_code}")
-            return None
+def find_existing_handler(client, agent_name):
+    """Find an existing SWML handler by name via RestClient.
 
-        handlers = resp.json().get("data", [])
+    Response shapes are identical to the legacy raw Fabric endpoints, so the
+    parsing below is a 1:1 port: list items carry
+    {id, display_name, swml_webhook: {name, primary_request_url}}, and
+    list_addresses() returns {data: [{id, channels: {audio: "/public/..."}}]}.
+    """
+    try:
+        # swml_webhooks is the current path for an External SWML Handler.
+        handlers = client.fabric.swml_webhooks.list().get("data", [])
 
         for handler in handlers:
             # The name is nested in swml_webhook object
@@ -875,29 +880,24 @@ def find_existing_handler(sw_host, auth, agent_name):
                 handler_id = handler.get("id")
                 handler_url = swml_webhook.get("primary_request_url", "")
                 # Get the address for this handler
-                addr_resp = requests.get(
-                    f"https://{sw_host}/api/fabric/resources/external_swml_handlers/{handler_id}/addresses",
-                    auth=auth,
-                    headers={"Accept": "application/json"}
-                )
-                if addr_resp.status_code == 200:
-                    addresses = addr_resp.json().get("data", [])
-                    resource_addr = find_resource_address(addresses, agent_name)
-                    if resource_addr:
-                        return {
-                            "id": handler_id,
-                            "name": handler_name,
-                            "url": handler_url,
-                            "address_id": resource_addr["id"],
-                            "address": resource_addr["channels"]["audio"]
-                        }
+                addresses = client.fabric.swml_webhooks.list_addresses(handler_id).get("data", [])
+                resource_addr = find_resource_address(addresses, agent_name)
+                if resource_addr:
+                    return {
+                        "id": handler_id,
+                        "name": handler_name,
+                        "url": handler_url,
+                        "address_id": resource_addr["id"],
+                        "address": resource_addr["channels"]["audio"]
+                    }
     except Exception as e:
         print(f"Error checking existing handlers: {e}")
     return None
 
 
 def setup_swml_handler():
-    """Set up SWML handler on startup."""
+    """Set up SWML handler on startup (via the unified RestClient)."""
+    global swml_setup_error
     sw_host = get_signalwire_host()
     project = os.getenv("SIGNALWIRE_PROJECT_ID", "")
     token = os.getenv("SIGNALWIRE_TOKEN", "")
@@ -907,11 +907,13 @@ def setup_swml_handler():
     auth_pass = os.getenv("SWML_BASIC_AUTH_PASSWORD", "")
 
     if not all([sw_host, project, token]):
-        print("SignalWire credentials not configured - skipping SWML handler setup")
+        swml_setup_error = "SignalWire credentials not configured (SIGNALWIRE_SPACE_NAME/PROJECT_ID/TOKEN)"
+        print(f"{swml_setup_error} - skipping SWML handler setup")
         return
 
     if not proxy_url:
-        print("SWML_PROXY_URL_BASE/APP_URL not set - skipping SWML handler setup")
+        swml_setup_error = "SWML_PROXY_URL_BASE/APP_URL not set"
+        print(f"{swml_setup_error} - skipping SWML handler setup")
         return
 
     # Build SWML URL with basic auth credentials
@@ -921,11 +923,12 @@ def setup_swml_handler():
     else:
         swml_url = proxy_url + "/blackjack"
 
-    auth = (project, token)
-    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+    # RestClient() no-args reads SIGNALWIRE_API_TOKEN/SIGNALWIRE_SPACE, which do NOT
+    # match this demo's SIGNALWIRE_TOKEN/SIGNALWIRE_SPACE_NAME convention — pass explicitly.
+    client = RestClient(project=project, token=token, host=sw_host)
 
     # Look for an existing handler by name
-    existing = find_existing_handler(sw_host, auth, agent_name)
+    existing = find_existing_handler(client, agent_name)
     if existing:
         swml_handler_info["id"] = existing["id"]
         swml_handler_info["address_id"] = existing["address_id"]
@@ -933,66 +936,59 @@ def setup_swml_handler():
 
         # Always update the URL to ensure credentials are current
         try:
-            update_resp = requests.put(
-                f"https://{sw_host}/api/fabric/resources/external_swml_handlers/{existing['id']}",
-                json={
-                    "primary_request_url": swml_url,
-                    "primary_request_method": "POST"
-                },
-                auth=auth,
-                headers=headers
+            client.fabric.swml_webhooks.update(
+                existing["id"],
+                primary_request_url=swml_url,
+                primary_request_method="POST",
             )
-            update_resp.raise_for_status()
             print(f"Updated SWML handler: {existing['name']}")
         except Exception as e:
             print(f"Failed to update handler URL: {e}")
 
         print(f"Call address: {existing['address']}")
+        swml_setup_error = None
     else:
-        # Create a new external SWML handler with the agent name
+        # Create a new external SWML handler with the agent name.
         try:
-            handler_resp = requests.post(
-                f"https://{sw_host}/api/fabric/resources/external_swml_handlers",
-                json={
-                    "name": agent_name,
-                    "used_for": "calling",
-                    "primary_request_url": swml_url,
-                    "primary_request_method": "POST"
-                },
-                auth=auth,
-                headers=headers
-            )
-            handler_resp.raise_for_status()
-            handler_id = handler_resp.json().get("id")
+            # create() emits a DeprecationWarning steering phone-number setups toward
+            # phone_numbers.set_swml_webhook; a standalone *dialable* handler (guest
+            # tokens dial its /public/{name} address) is intentional here.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                handler = client.fabric.swml_webhooks.create(
+                    name=agent_name,
+                    used_for="calling",
+                    primary_request_url=swml_url,
+                    primary_request_method="POST",
+                )
+            handler_id = handler.get("id")
             swml_handler_info["id"] = handler_id
 
             # Get the address for this handler
-            addr_resp = requests.get(
-                f"https://{sw_host}/api/fabric/resources/external_swml_handlers/{handler_id}/addresses",
-                auth=auth,
-                headers={"Accept": "application/json"}
-            )
-            addr_resp.raise_for_status()
-            addresses = addr_resp.json().get("data", [])
+            addresses = client.fabric.swml_webhooks.list_addresses(handler_id).get("data", [])
             resource_addr = find_resource_address(addresses, agent_name)
             if resource_addr:
                 swml_handler_info["address_id"] = resource_addr["id"]
                 swml_handler_info["address"] = resource_addr["channels"]["audio"]
                 print(f"Created SWML handler: {agent_name}")
                 print(f"Call address: {swml_handler_info['address']}")
+                swml_setup_error = None
             else:
-                print("No address found for handler")
+                swml_setup_error = "No address found for created handler"
+                print(swml_setup_error)
         except Exception as e:
-            print(f"Failed to create SWML handler: {e}")
+            swml_setup_error = f"Failed to create SWML handler: {e}"
+            print(swml_setup_error)
             # Retry finding existing handler (another worker may have just created it)
             time.sleep(0.5)
-            existing = find_existing_handler(sw_host, auth, agent_name)
+            existing = find_existing_handler(client, agent_name)
             if existing:
                 swml_handler_info["id"] = existing["id"]
                 swml_handler_info["address_id"] = existing["address_id"]
                 swml_handler_info["address"] = existing["address"]
                 print(f"Found existing SWML handler after retry: {existing['name']}")
                 print(f"Call address: {existing['address']}")
+                swml_setup_error = None
 
 
 def create_server(port=None):
@@ -1016,6 +1012,13 @@ def create_server(port=None):
         if not all([sw_host, project, token]):
             return JSONResponse({"error": "SignalWire credentials not configured"}, status_code=500)
 
+        # If startup registration didn't complete (stray extra worker, or creds/
+        # tunnel arrived late), lazily retry once under a lock before giving up.
+        if not swml_handler_info["address_id"]:
+            with _swml_setup_lock:
+                if not swml_handler_info["address_id"]:
+                    setup_swml_handler()
+
         if not swml_handler_info["address_id"]:
             print(f"get_token failed: swml_handler_info = {swml_handler_info}")
             print(f"  SIGNALWIRE_SPACE_NAME={os.getenv('SIGNALWIRE_SPACE_NAME', '(not set)')}")
@@ -1023,36 +1026,28 @@ def create_server(port=None):
             print(f"  SIGNALWIRE_TOKEN={'set' if os.getenv('SIGNALWIRE_TOKEN') else '(not set)'}")
             print(f"  SWML_PROXY_URL_BASE={os.getenv('SWML_PROXY_URL_BASE', '(not set)')}")
             print(f"  APP_URL={os.getenv('APP_URL', '(not set)')}")
-            return JSONResponse({"error": "SWML handler not configured - check startup logs"}, status_code=500)
-
-        auth = (project, token)
-        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+            return JSONResponse(
+                {"error": f"SWML handler not registered: {swml_setup_error or 'unknown reason - check startup logs'}"},
+                status_code=500,
+            )
 
         try:
-            # Create a guest token with access to this address
-            expire_at = int(time.time()) + 3600 * 24  # 24 hours
-
-            guest_resp = requests.post(
-                f"https://{sw_host}/api/fabric/guests/tokens",
-                json={
-                    "allowed_addresses": [swml_handler_info["address_id"]],
-                    "expire_at": expire_at
-                },
-                auth=auth,
-                headers=headers
+            # Create a guest token with access to this address (valid 24 hours).
+            client = RestClient(project=project, token=token, host=sw_host)
+            expire_at = int(time.time()) + 3600 * 24
+            guest = client.fabric.tokens.create_guest_token(
+                allowed_addresses=[swml_handler_info["address_id"]],
+                expire_at=expire_at,
             )
-            guest_resp.raise_for_status()
-            guest_token = guest_resp.json().get("token", "")
+            guest_token = guest.get("token", "")
 
             return {
                 "token": guest_token,
                 "address": swml_handler_info["address"]
             }
 
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             print(f"Token request failed: {e}")
-            if hasattr(e, 'response') and e.response is not None:
-                print(f"Response: {e.response.text}")
             return JSONResponse({"error": str(e)}, status_code=500)
 
     # Add /get_resource_info endpoint for dashboard links

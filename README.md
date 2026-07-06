@@ -91,7 +91,7 @@ The SignalWire Agents SDK provides comprehensive security features including:
 - Rate limiting
 - Request size limits
 
-For complete security configuration options, see the [SignalWire Agents Security Documentation](https://github.com/signalwire/signalwire-agents/blob/main/docs/security.md).
+For complete security configuration options, see the [SignalWire Python SDK documentation](https://github.com/signalwire/signalwire-python).
 
 ### Quick Start
 
@@ -424,7 +424,7 @@ This codebase serves as a practical example of:
 - Handling real-time user events and responses
 
 For more information on SignalWire technologies:
-- [SignalWire Agents SDK (GitHub)](https://github.com/signalwire/signalwire-agents) - Python SDK for building AI agents
+- [SignalWire Python SDK (GitHub)](https://github.com/signalwire/signalwire-python) - Unified Python SDK for building AI agents
 - [SignalWire AI Documentation](https://developer.signalwire.com/ai/) - AI Agent guides and tutorials
 - [SWML Documentation](https://developer.signalwire.com/swml/) - SignalWire Markup Language reference
 - [Browser SDK Documentation](https://developer.signalwire.com/sdks/browser-sdk/) - JavaScript SDK for WebRTC
