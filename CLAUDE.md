@@ -78,7 +78,7 @@ swaig-test sigmond_blackjack.py --exec place_bet --amount 50
 ### Dependencies Installation
 ```bash
 pip install -r requirements.txt
-# Main dependency: signalwire-agents (includes fastapi, uvicorn)
+# Main dependency: signalwire-sdk (import name `signalwire`; includes fastapi, uvicorn)
 ```
 
 ## Environment Variables

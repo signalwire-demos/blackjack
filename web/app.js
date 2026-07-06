@@ -4,9 +4,15 @@ let currentToken = null;
 let currentDestination = null;
 const BASE_URL = '/card_images';  // Absolute path from web root
 
+// SignalWire v4 (@signalwire/js) connection state.
 let client;
-let roomSession;
+let call;
 let isMuted = false;
+let subscriptions = [];      // every RxJS Subscription; unsubscribed in teardown
+let remoteVideoEl = null;    // the <video> element we create for the remote media
+let lastStreamSig = '';      // remote track-set signature, for re-attach detection
+let teardownDone = false;    // dedup teardown across status/complete/error/hangup
+
 let gameState = {
     playerHand: [],
     dealerHand: [],
@@ -43,7 +49,7 @@ function logEvent(message, data = null, isUserEvent = false) {
     const entry = document.createElement('div');
     entry.className = isUserEvent ? 'event-entry user-event' : 'event-entry';
     const time = new Date().toLocaleTimeString();
-    
+
     let dataStr = '';
     if (data) {
         try {
@@ -61,7 +67,7 @@ function logEvent(message, data = null, isUserEvent = false) {
             dataStr = 'Error serializing data: ' + e.message;
         }
     }
-    
+
     entry.innerHTML = `
         <div class="event-time">${time}</div>
         <div>${isUserEvent ? '🎲 GAME EVENT: ' : ''}${message}</div>
@@ -74,12 +80,12 @@ function logEvent(message, data = null, isUserEvent = false) {
 // Card display functions
 function getCardImagePath(card) {
     if (!card) return `${BASE_URL}/card_back.png`;
-    
+
     // The bot now sends the correct filename directly
     if (card.image) {
         return `${BASE_URL}/${card.image}`;
     }
-    
+
     // Fallback to constructing filename if image not provided
     return `${BASE_URL}/${card.rank}_of_${card.suit}.png`;
 }
@@ -87,9 +93,9 @@ function getCardImagePath(card) {
 function displayCard(container, card, faceDown = false) {
     const cardDiv = document.createElement('div');
     cardDiv.className = 'card';
-    
+
     console.log('displayCard called with:', { card, faceDown, container: container.id });
-    
+
     if (faceDown) {
         cardDiv.classList.add('face-down');
         const img = document.createElement('img');
@@ -108,7 +114,7 @@ function displayCard(container, card, faceDown = false) {
         };
         cardDiv.appendChild(img);
     }
-    
+
     container.appendChild(cardDiv);
 }
 
@@ -119,20 +125,20 @@ function clearCards(container) {
 function updateGameDisplay() {
     chipCount.textContent = gameState.chips;
     betAmount.textContent = gameState.currentBet;
-    
+
     if (gameState.playerScore > 0) {
         playerScore.textContent = gameState.playerScore;
         playerScore.style.display = 'inline-block';
     } else {
         playerScore.style.display = 'none';
     }
-    
+
     if (gameState.dealerScore > 0 && gameState.gamePhase !== 'playing') {
         dealerScore.textContent = gameState.dealerScore;
         dealerScore.style.display = 'inline-block';
     } else if (gameState.dealerHand.length > 0) {
         // Show only visible card score during play
-        const visibleScore = gameState.dealerHand[0] ? 
+        const visibleScore = gameState.dealerHand[0] ?
             (gameState.dealerHand[0].rank === 'ace' ? 11 : gameState.dealerHand[0].value || 10) : 0;
         dealerScore.textContent = visibleScore + ' + ?';
         dealerScore.style.display = 'inline-block';
@@ -202,20 +208,20 @@ function createParticles() {
 
 function handleUserEvent(params) {
     console.log('Handling user event:', params);
-    
+
     // The event data structure can vary - sometimes it's params.event, sometimes it's direct
     let eventData = params;
-    
+
     // If params has an event property, use that
     if (params && params.event) {
         eventData = params.event;
     }
-    
+
     if (!eventData || !eventData.type) {
         console.log('No valid event data found in:', params);
         return;
     }
-    
+
     switch(eventData.type) {
         case 'clear_table':
             // Clear the table for a new hand
@@ -231,60 +237,60 @@ function handleUserEvent(params) {
             gameActions.style.display = 'none';
             logEvent('Table cleared for new hand', { chips: eventData.chips }, true);
             break;
-            
+
         case 'bet_placed':
             gameState.currentBet = eventData.amount;
             gameState.chips = eventData.remaining_chips;
             updateGameDisplay();
             logEvent('Bet placed', { amount: eventData.amount }, true);
             break;
-            
+
         case 'cards_dealt':
             clearCards(playerCards);
             clearCards(dealerCards);
-            
+
             console.log('Cards dealt event received:', eventData);
             console.log('Player hand:', eventData.player_hand);
             console.log('Dealer hand:', eventData.dealer_hand);
-            
+
             gameState.playerHand = eventData.player_hand;
             gameState.dealerHand = eventData.dealer_hand;
             gameState.playerScore = eventData.player_score;
             gameState.gamePhase = 'playing';
-            
+
             // Display player cards
             eventData.player_hand.forEach((card, index) => {
                 console.log(`Displaying player card ${index}:`, card);
                 displayCard(playerCards, card);
             });
-            
+
             // Display dealer cards (one face up, one face down)
             console.log('Displaying dealer first card:', eventData.dealer_hand[0]);
             displayCard(dealerCards, eventData.dealer_hand[0]);
             console.log('Displaying dealer hole card (face down)');
             displayCard(dealerCards, null, true); // Face-down card
-            
+
             updateGameDisplay();
-            
+
             // Show action buttons if not blackjack
             if (gameState.playerScore !== 21) {
                 gameActions.style.display = 'flex';
             }
-            
-            logEvent('Cards dealt', { 
+
+            logEvent('Cards dealt', {
                 playerScore: eventData.player_score,
-                dealerVisible: eventData.dealer_visible_score 
+                dealerVisible: eventData.dealer_visible_score
             }, true);
-            
+
             if (gameState.playerScore === 21) {
                 showResult('BLACKJACK!');
             }
             break;
-            
+
         case 'player_hit':
             // Clear and redraw all cards to ensure sync
             clearCards(playerCards);
-            
+
             // Update the game state with the full hand from server
             if (eventData.player_hand) {
                 gameState.playerHand = eventData.player_hand;
@@ -297,27 +303,27 @@ function handleUserEvent(params) {
                 // Fallback to just adding the new card if full hand not provided
                 displayCard(playerCards, eventData.new_card);
             }
-            
+
             gameState.playerScore = eventData.player_score;
             updateGameDisplay();
-            
+
             if (eventData.busted) {
                 gameActions.style.display = 'none';
                 showResult('BUST!');
             }
-            
-            logEvent('Player hit', { 
+
+            logEvent('Player hit', {
                 newCard: eventData.new_card.rank + ' of ' + eventData.new_card.suit,
                 score: eventData.player_score,
-                busted: eventData.busted 
+                busted: eventData.busted
             }, true);
             break;
-            
+
         case 'player_stand':
             gameActions.style.display = 'none';
             logEvent('Player stands', { score: eventData.player_score }, true);
             break;
-            
+
         case 'double_down':
             displayCard(playerCards, eventData.new_card);
             gameState.playerScore = eventData.player_score;
@@ -325,50 +331,50 @@ function handleUserEvent(params) {
             gameState.chips = eventData.remaining_chips;
             gameActions.style.display = 'none';
             updateGameDisplay();
-            
-            logEvent('Double down', { 
+
+            logEvent('Double down', {
                 newBet: eventData.new_bet,
-                score: eventData.player_score 
+                score: eventData.player_score
             }, true);
             break;
-            
+
         case 'dealer_play':
             // Clear and redraw dealer cards (reveal hole card)
             clearCards(dealerCards);
             eventData.dealer_hand.forEach(card => {
                 displayCard(dealerCards, card);
             });
-            
+
             gameState.dealerScore = eventData.dealer_score;
             gameState.gamePhase = 'dealer_playing';  // Change phase so score shows
             updateGameDisplay();
-            
+
             if (eventData.dealer_busted) {
                 showResult('DEALER BUSTS!');
             }
-            
-            logEvent('Dealer plays', { 
+
+            logEvent('Dealer plays', {
                 score: eventData.dealer_score,
-                busted: eventData.dealer_busted 
+                busted: eventData.dealer_busted
             }, true);
             break;
-            
+
         case 'hand_resolved':
             gameState.chips = eventData.total_chips;
             updateGameDisplay();
-            
+
             showResult(eventData.result, 5000);
-            
+
             // Hide action buttons
             gameActions.style.display = 'none';
-            
-            logEvent('Hand resolved', { 
+
+            logEvent('Hand resolved', {
                 result: eventData.result,
                 winnings: eventData.winnings,
-                totalChips: eventData.total_chips 
+                totalChips: eventData.total_chips
             }, true);
             break;
-            
+
         case 'game_reset':
             clearCards(playerCards);
             clearCards(dealerCards);
@@ -383,7 +389,7 @@ function handleUserEvent(params) {
             };
             updateGameDisplay();
             gameActions.style.display = 'none';
-            
+
             logEvent('New hand ready', { chips: eventData.chips }, true);
             break;
     }
@@ -392,8 +398,57 @@ function handleUserEvent(params) {
 // Voice commands are handled by the AI agent directly
 // No UI buttons needed for game actions
 
-// Connect to call with dynamic token
+// ============================================================================
+// SignalWire v4 (@signalwire/js) connection layer
+// ----------------------------------------------------------------------------
+// v4 is a rewrite of the connection layer, not a rename: the client constructor
+// auto-connects, there is no rootElement / negotiateVideo / .on() events /
+// roomSession.start(). Everything is RxJS observables and we render media
+// ourselves.
+// ============================================================================
+
+// Hardened token fetch. Tolerates the legacy FastAPI tuple-bug array shape and
+// validates the payload so a falsy token never silently reaches the SDK (which
+// would surface as a misleading InvalidCredentialsError).
+async function fetchGuestToken() {
+    const resp = await fetch('/get_token');
+    let data = await resp.json();
+    if (Array.isArray(data)) data = data[0] || {};          // legacy [{...}, 500] shape
+    if (!resp.ok || data.error) throw new Error(data.error || `HTTP ${resp.status}`);
+    if (!data.token || !data.address) throw new Error('Token response missing token/address');
+    return data;
+}
+
+// v4 renders no media for us. Create our own <video> and (re)attach the remote
+// stream whenever its track set changes: the SDK re-emits the SAME MediaStream
+// object as tracks arrive, and Chromium may never render a late video track
+// unless srcObject is re-assigned. Signature = sorted "kind:id" per track.
+function attachRemoteStream(stream) {
+    if (!stream) return;
+    const sig = stream.getTracks().map(t => t.kind + ':' + t.id).sort().join(',');
+    if (sig === lastStreamSig && remoteVideoEl && remoteVideoEl.srcObject === stream) return;
+    lastStreamSig = sig;
+
+    const container = document.getElementById('video-container');
+    if (!remoteVideoEl) {
+        remoteVideoEl = document.createElement('video');
+        remoteVideoEl.autoplay = true;
+        remoteVideoEl.playsInline = true;
+        // Leave UNMUTED: this element carries the remote audio, and connect is
+        // user-gesture-initiated so autoplay-with-sound is allowed.
+        remoteVideoEl.style.width = '100%';
+        remoteVideoEl.style.height = '100%';
+        remoteVideoEl.style.objectFit = 'cover';
+        if (container) container.appendChild(remoteVideoEl);
+    }
+    remoteVideoEl.srcObject = stream;
+    remoteVideoEl.play().catch(err => logEvent('Remote video play() failed', { error: err.message }));
+    logEvent('Attached remote stream', { tracks: sig });
+}
+
+// Connect to the dealer with a dynamically-fetched guest token.
 async function connectToCall() {
+    teardownDone = false;
     try {
         // Disable button and show connecting state
         connectBtn.disabled = true;
@@ -403,361 +458,134 @@ async function connectToCall() {
 
         eventEntries.innerHTML = '';
         logEvent('Starting new connection...');
-
         statusDiv.textContent = 'Getting token...';
 
-        // Fetch token and address dynamically from the server
-        const tokenResp = await fetch('/get_token');
-        const tokenData = await tokenResp.json();
-
-        if (tokenData.error) {
-            throw new Error(tokenData.error);
-        }
-
+        // Fail-fast: fetch the first token BEFORE constructing the client. If
+        // authenticate() is the first fetch and throws inside the constructor,
+        // the SDK surfaces it only via errors$ and the isConnected$ gate hangs.
+        const tokenData = await fetchGuestToken();
         currentToken = tokenData.token;
         currentDestination = tokenData.address;
-
         logEvent('Got token', { destination: currentDestination, tokenLength: currentToken.length });
 
-        statusDiv.textContent = 'Initializing client...';
-        logEvent('Using dynamic token', { tokenLength: currentToken.length });
-
-        // Initialize client with debug options
-        // SignalWire should be available on window when using UMD build
         const SignalWireSDK = window.SignalWire || SignalWire;
-        logEvent('SignalWire SDK check', { 
-            hasWindow: typeof window !== 'undefined',
-            hasSignalWire: typeof SignalWire !== 'undefined',
-            hasWindowSignalWire: typeof window.SignalWire !== 'undefined',
-            SignalWireType: typeof SignalWireSDK,
-            SignalWireKeys: SignalWireSDK ? Object.keys(SignalWireSDK) : []
-        });
-
-        // Based on the keys, we need to use Fabric or SignalWire
-        if (typeof SignalWireSDK.SignalWire === 'function') {
-            client = await SignalWireSDK.SignalWire({
-                token: currentToken,
-                logLevel: 'debug',
-                debug: { logWsTraffic: false }
-            });
-        } else if (typeof SignalWireSDK.Fabric === 'function') {
-            client = await SignalWireSDK.Fabric({
-                token: currentToken,
-                logLevel: 'debug',
-                debug: { logWsTraffic: false }
-            });
-        } else {
-            throw new Error('SignalWire SDK not found or not a function');
+        if (!SignalWireSDK || typeof SignalWireSDK.SignalWire !== 'function') {
+            throw new Error('SignalWire v4 SDK not loaded (window.SignalWire.SignalWire missing)');
         }
 
-        logEvent('Client initialized successfully');
+        statusDiv.textContent = 'Initializing client...';
 
-        // Subscribe to ALL events on the client to debug
-        const originalEmit = client.emit;
-        client.emit = function(event, ...args) {
-            if (event !== 'signalwire.socket.message' && event !== 'signalwire.socket.open') {
-                logEvent(`Client event: ${event}`, args[0]);
+        // Credential provider: return the cached first token once, then re-fetch
+        // a fresh guest token on subsequent calls (refresh / reconnect).
+        let usedInitialToken = false;
+        const credentialProvider = {
+            authenticate: async () => {
+                if (!usedInitialToken) {
+                    usedInitialToken = true;
+                    return { token: currentToken };
+                }
+                const fresh = await fetchGuestToken();
+                currentToken = fresh.token;
+                currentDestination = fresh.address;
+                return { token: currentToken };
             }
-            return originalEmit.apply(this, [event, ...args]);
         };
-        
-        // Client-level disconnect handling
-        client.on('signalwire.disconnect', (params) => {
-            logEvent('Client disconnected', params);
-            handleDisconnect();
-        });
-        
-        client.on('signalwire.error', (params) => {
-            logEvent('Client error', params);
-            if (params && params.error && params.error.includes('disconnect')) {
-                handleDisconnect();
-            }
-        });
 
-        // Try multiple event patterns for user events
-        client.on('user_event', (params) => {
-            console.log('🎲 CLIENT EVENT: user_event (no prefix)', params);
-            logEvent('user_event (no prefix)', params, true);
-            handleUserEvent(params);
-        });
+        // v4: SignalWire is a CLASS and the constructor AUTO-CONNECTS.
+        client = new SignalWireSDK.SignalWire(credentialProvider);
 
-        client.on('calling.user_event', (params) => {
-            console.log('🎰 CLIENT EVENT: calling.user_event', params);
-            logEvent('calling.user_event', params, true);
-            handleUserEvent(params);
-        });
+        // v4 replaces logLevel:'debug' with error/warning observables.
+        subscriptions.push(client.errors$.subscribe(e => logEvent('SDK error', { code: e?.code, message: e?.message })));
+        subscriptions.push(client.warnings$.subscribe(w => logEvent('SDK warning', { code: w?.code, message: w?.message })));
 
-        client.on('signalwire.event', (params) => {
-            console.log('🃏 CLIENT EVENT: signalwire.event', params);
-            if (params.event_type === 'user_event') {
-                console.log('✅ Found user_event in signalwire.event!', params.params);
-                logEvent('Found user_event in signalwire.event', params.params, true);
-                handleUserEvent(params.params || params);
-            } else {
-                logEvent('signalwire.event', params);
-            }
-        });
-
-        statusDiv.textContent = 'Getting media devices...';
-
-        // Try to enumerate devices and select defaults
-        try {
-            // First, get permission to access devices by creating a temp stream
-            const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-            tempStream.getTracks().forEach(track => track.stop()); // Stop the temp stream
-            
-            // Now enumerate devices with labels
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            const audioInputs = devices.filter(d => d.kind === 'audioinput');
-            const videoInputs = devices.filter(d => d.kind === 'videoinput');
-            
-            // Find the default devices
-            let audioDeviceId = undefined;
-            let videoDeviceId = undefined;
-            
-            // Look for devices with "Default" in the label first
-            const defaultAudio = audioInputs.find(d => d.label.toLowerCase().includes('default'));
-            const defaultVideo = videoInputs.find(d => d.label.toLowerCase().includes('default'));
-            
-            if (defaultAudio) {
-                audioDeviceId = defaultAudio.deviceId;
-                logEvent('Found default audio device', { label: defaultAudio.label, deviceId: defaultAudio.deviceId });
-            } else if (audioInputs.length > 0) {
-                audioDeviceId = audioInputs[0].deviceId;
-                logEvent('Using first audio device', { label: audioInputs[0].label, deviceId: audioInputs[0].deviceId });
-            }
-            
-            if (defaultVideo) {
-                videoDeviceId = defaultVideo.deviceId;
-                logEvent('Found default video device', { label: defaultVideo.label, deviceId: defaultVideo.deviceId });
-            } else if (videoInputs.length > 0) {
-                videoDeviceId = videoInputs[0].deviceId;
-                logEvent('Using first video device', { label: videoInputs[0].label, deviceId: videoInputs[0].deviceId });
-            }
-            
-            statusDiv.textContent = 'Dialing...';
-            
-            // Dial into the room with specific devices
-            logEvent('About to call client.dial with params', {
-                to: currentDestination,
-                hasRootElement: !!document.getElementById('video-container'),
-                audio: audioDeviceId ? { deviceId: { exact: audioDeviceId } } : true,
-                video: videoDeviceId ? { deviceId: { exact: videoDeviceId } } : true
-            });
-
-            roomSession = await client.dial({
-                to: currentDestination,
-                rootElement: document.getElementById('video-container'),
-                audio: audioDeviceId ? { deviceId: { exact: audioDeviceId } } : true,
-                video: videoDeviceId ? { deviceId: { exact: videoDeviceId } } : true,
-                negotiateVideo: true,
-                userVariables: {
-                    userName: 'Blackjack Player',
-                    interface: 'web-ui',
-                    timestamp: new Date().toISOString()
+        // Gate the dial on isConnected$ emitting true. It replays synchronously on
+        // subscribe (settle via flag, defer unsubscribe) and NEVER errors on bad
+        // creds, so add a timeout or the UI hangs forever.
+        statusDiv.textContent = 'Connecting...';
+        await new Promise((resolve, reject) => {
+            let settled = false;
+            const timer = setTimeout(() => {
+                if (!settled) { settled = true; reject(new Error('Timed out waiting for SignalWire connection')); }
+            }, 15000);
+            const sub = client.isConnected$.subscribe(connected => {
+                if (connected && !settled) {
+                    settled = true;
+                    clearTimeout(timer);
+                    setTimeout(() => sub.unsubscribe(), 0);   // deferred: replays synchronously
+                    resolve();
                 }
             });
-        } catch (error) {
-            logEvent('Error getting devices', { error: error.message });
-            statusDiv.textContent = 'Dialing with browser defaults...';
+        });
+        logEvent('Client connected');
 
-            // Fallback to letting browser choose
-            roomSession = await client.dial({
-                to: currentDestination,
-                rootElement: document.getElementById('video-container'),
-                audio: true,
-                video: true,
-                negotiateVideo: true,
-                userVariables: {
-                    userName: 'Blackjack Player',
-                    interface: 'web-ui',
-                    timestamp: new Date().toISOString()
-                }
-            });
-        }
+        statusDiv.textContent = 'Dialing...';
 
+        // v4 dial: destination is the first POSITIONAL arg. Receive-only avatar
+        // video (video:false + receiveVideo:true) means NO camera-permission
+        // prompt. Audio is captured for the player's mic.
+        call = await client.dial(currentDestination, {
+            audio: true,
+            video: false,
+            receiveAudio: true,
+            receiveVideo: true,
+            userVariables: {
+                userName: 'Blackjack Player',
+                interface: 'web-ui',
+                timestamp: new Date().toISOString()
+            }
+        });
         logEvent('Dial initiated');
 
-        // Subscribe to room session events
-        roomSession.on('room.started', (params) => {
-            logEvent('room.started', params);
-        });
+        // Remote media: subscribe and render it ourselves (v4 injects no <video>).
+        subscriptions.push(call.remoteStream$.subscribe(stream => attachRemoteStream(stream)));
 
-        roomSession.on('call.joined', (params) => {
-            logEvent('call.joined', params);
-            statusDiv.textContent = 'Connected to Dealer';
-            connectBtn.style.display = 'none';
-            hangupBtn.style.display = 'inline-block';
-            muteBtn.style.display = 'inline-block';
-            
-            // Update button text to be more compact when connected
-            
-            // Log audio output device
-            const videoElement = document.querySelector('#video-container video');
-            if (videoElement && typeof videoElement.setSinkId === 'function') {
-                navigator.mediaDevices.enumerateDevices()
-                    .then(devices => {
-                        const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
-                        const currentOutput = audioOutputs.find(device => device.deviceId === videoElement.sinkId);
-                        
-                        logEvent('Audio output device', {
-                            count: audioOutputs.length,
-                            currentDevice: currentOutput ? currentOutput.label : 'System Default',
-                            sinkId: videoElement.sinkId || 'default'
-                        });
-                    });
-            }
-        });
-        
-        // Watch for when localStream becomes available
-        const checkLocalStream = setInterval(() => {
-            if (roomSession && roomSession.localStream) {
-                clearInterval(checkLocalStream);
-                logEvent('Local stream found');
-                
-                const audioTracks = roomSession.localStream.getAudioTracks();
-                const videoTracks = roomSession.localStream.getVideoTracks();
-                
-                // Log video device being used
-                videoTracks.forEach(track => {
-                    const settings = track.getSettings();
-                    logEvent('Video input device', {
-                        label: track.label,
-                        deviceId: settings.deviceId,
-                        width: settings.width,
-                        height: settings.height,
-                        frameRate: settings.frameRate
-                    });
-                });
-                
-                // Disable AGC and noise suppression on audio tracks
-                audioTracks.forEach(track => {
-                    // Log the audio device being used
-                    const settings = track.getSettings();
-                    
-                    // Get device info to show if it's the default
-                    navigator.mediaDevices.enumerateDevices().then(devices => {
-                        const audioInputs = devices.filter(d => d.kind === 'audioinput');
-                        const currentDevice = audioInputs.find(d => d.deviceId === settings.deviceId);
-                        const isDefault = settings.deviceId === 'default' || 
-                                        (currentDevice && currentDevice.deviceId === 'default');
-                        
-                        logEvent('Audio input device', {
-                            label: track.label,
-                            deviceId: settings.deviceId,
-                            isSystemDefault: isDefault,
-                            groupId: settings.groupId,
-                            sampleRate: settings.sampleRate,
-                            channelCount: settings.channelCount
-                        });
-                    });
-                    
-                    // Apply constraints to disable AGC and noise suppression
-                    track.applyConstraints({
-                        autoGainControl: false,
-                        echoCancellation: true,
-                        noiseSuppression: false
-                    }).then(() => {
-                        logEvent(`Disabled AGC and noise suppression on audio track: ${track.label}`);
-                    }).catch(err => {
-                        logEvent(`Failed to disable AGC/noise suppression: ${err.message}`);
-                    });
-                });
-                
-                // Check if we should start muted
-                if (startMutedCheckbox.checked) {
-                    audioTracks.forEach(track => {
-                        track.enabled = false;
-                        logEvent(`Muted audio track: ${track.label}`);
-                    });
-                    isMuted = true;
-                    muteBtn.textContent = 'Unmute';
-                    logEvent('Started call muted as requested');
+        // Game events: ONE subscription. Payload lives in evt.params;
+        // handleUserEvent already unwraps the {event:{...}} vs flat shapes.
+        subscriptions.push(call.subscribe('user_event').subscribe(evt => {
+            const payload = (evt && evt.params !== undefined) ? evt.params : evt;
+            logEvent('user_event', payload, true);
+            handleUserEvent(payload);
+        }));
+
+        // Call lifecycle via status$ (replaces call.joined / room.left / destroy /
+        // call.ended / disconnected / etc.). Also handle complete() — the SDK
+        // completes subjects on destroy, sometimes without a terminal status.
+        subscriptions.push(call.status$.subscribe({
+            next: (status) => {
+                logEvent('call.status', { status });
+                if (status === 'connected') {
+                    statusDiv.textContent = 'Connected to Dealer';
+                    connectBtn.style.display = 'none';
+                    hangupBtn.style.display = 'inline-block';
+                    muteBtn.style.display = 'inline-block';
+                    // Honor "start muted".
+                    if (startMutedCheckbox && startMutedCheckbox.checked && !isMuted) {
+                        toggleMute();
+                    }
+                } else if (status === 'disconnected' || status === 'failed' || status === 'destroyed') {
+                    handleDisconnect();
                 }
-            }
-        }, 50); // Check every 50ms
-        
-        // Store interval for cleanup
-        roomSession._streamCheckInterval = checkLocalStream;
-        
-        roomSession.on('member.joined', (params) => {
-            logEvent('member.joined', params);
-        });
-        
-        roomSession.on('member.left', (params) => {
-            logEvent('member.left', params);
-        });
-        
-        roomSession.on('room.left', (params) => {
-            logEvent('room.left', params);
-            handleDisconnect();
-        });
-        
-        roomSession.on('destroy', (params) => {
-            logEvent('destroy', params);
-            handleDisconnect();
-        });
-        
-        roomSession.on('call.ended', (params) => {
-            logEvent('call.ended', params);
-            handleDisconnect();
-        });
-        
-        roomSession.on('room.ended', (params) => {
-            logEvent('room.ended', params);
-            handleDisconnect();
-        });
-        
-        roomSession.on('disconnected', (params) => {
-            logEvent('disconnected', params);
-            handleDisconnect();
-        });
-        
-        roomSession.on('call.state', (params) => {
-            logEvent('call.state', { state: params.state });
-            // You might see states like 'new', 'trying', 'early', 'ringing', 'answered', 'ending', 'ended'
-        });
-        
-        roomSession.on('session.ended', (params) => {
-            logEvent('session.ended', params);
-            handleDisconnect();
-        });
-        
-        roomSession.on('member.updated', (params) => {
-            logEvent('member.updated', params);
-        });
-        
-        // Note: The tarot app has this commented out, but let's try it
-        // roomSession.on('user_event', (params) => {
-        //     console.log('Room session user_event:', params);
-        //     handleUserEvent(params);
-        // });
-
-        // Start the call - this needs to be AFTER all event listeners are set up
-        logEvent('Starting call...');
-        await roomSession.start();
+            },
+            complete: () => handleDisconnect()
+        }));
 
     } catch (error) {
         logEvent('Connection error', { error: error.message });
-        statusDiv.textContent = 'Connection failed';
+        // Show the actual blocker, not a generic string (saves a debugging round-trip).
+        statusDiv.textContent = 'Connection failed: ' + error.message;
         console.error('Connection error:', error);
-        // Reset connect button
-        connectBtn.disabled = false;
-        connectBtn.textContent = '📞 Connect';
-        connectBtn.style.background = '';
-        connectBtn.style.borderColor = '';
-        connectBtn.style.display = 'inline-block';
-        hangupBtn.style.display = 'none';
-        muteBtn.style.display = 'none';
+        handleDisconnect();
     }
 }
 
 function handleDisconnect() {
-    // Clean up stream check interval
-    if (roomSession && roomSession._streamCheckInterval) {
-        clearInterval(roomSession._streamCheckInterval);
-    }
-    
+    if (teardownDone) return;   // dedup across status/complete/error/hangup
+    teardownDone = true;
+
+    // Unsubscribe every RxJS subscription.
+    subscriptions.forEach(s => { try { s.unsubscribe(); } catch (e) { /* ignore */ } });
+    subscriptions = [];
+
     statusDiv.textContent = 'Disconnected';
     // Reset connect button
     connectBtn.disabled = false;
@@ -770,13 +598,11 @@ function handleDisconnect() {
     muteBtn.textContent = 'Mute';
     isMuted = false;
     gameActions.style.display = 'none';
-    
-    // No need to restore anything - buttons are always icons
-    
+
     // Clear the game board
     clearCards(playerCards);
     clearCards(dealerCards);
-    
+
     // Reset game state
     gameState = {
         playerHand: [],
@@ -788,55 +614,51 @@ function handleDisconnect() {
         gamePhase: 'waiting'
     };
     updateGameDisplay();
-    
+
     // Hide scores
     playerScore.style.display = 'none';
     dealerScore.style.display = 'none';
-    
+
     // Clear any result message
-    const resultMessage = document.getElementById('resultMessage');
-    if (resultMessage) {
-        resultMessage.classList.remove('show');
+    const rm = document.getElementById('resultMessage');
+    if (rm) {
+        rm.classList.remove('show');
     }
-    
-    // Clean up video container thoroughly
+
+    // Tear down the remote media element we created.
+    if (remoteVideoEl) {
+        if (remoteVideoEl.srcObject) {
+            remoteVideoEl.srcObject.getTracks().forEach(track => {
+                try { track.stop(); } catch (e) { /* ignore */ }
+            });
+            remoteVideoEl.srcObject = null;
+        }
+        try { remoteVideoEl.pause(); } catch (e) { /* ignore */ }
+        if (remoteVideoEl.parentNode) remoteVideoEl.parentNode.removeChild(remoteVideoEl);
+        remoteVideoEl = null;
+    }
+    lastStreamSig = '';
+
+    // Clean up anything else left in the container (defensive).
     const videoContainer = document.getElementById('video-container');
     if (videoContainer) {
-        logEvent('Cleaning video container');
-        
-        // Stop any video streams in the container
-        const videos = videoContainer.querySelectorAll('video');
-        videos.forEach(video => {
-            if (video.srcObject) {
-                video.srcObject.getTracks().forEach(track => {
-                    track.stop();
-                    logEvent(`Stopped ${track.kind} track`);
-                });
-                video.srcObject = null;
-            }
-            video.pause();
-        });
-        
-        // Remove all child elements (ensures clean slate for next connection)
         while (videoContainer.firstChild) {
             videoContainer.removeChild(videoContainer.firstChild);
         }
     }
-    
-    if (roomSession) {
-        roomSession = null;
-    }
-    
+
+    call = null;
+
     if (client) {
-        client.disconnect();
+        try { client.disconnect(); } catch (e) { /* ignore */ }
         client = null;
     }
 }
 
 async function hangup() {
-    if (roomSession) {
+    if (call) {
         try {
-            await roomSession.hangup();
+            await call.hangup();
         } catch (e) {
             logEvent('Hangup error', { error: e.message });
         }
@@ -844,29 +666,35 @@ async function hangup() {
     handleDisconnect();
 }
 
-function toggleMute() {
+async function toggleMute() {
     try {
-        // The localStream should be stored on the roomSession
-        if (roomSession && roomSession.localStream) {
-            const audioTracks = roomSession.localStream.getAudioTracks();
-            
-            // Toggle each audio track
-            audioTracks.forEach(track => {
-                track.enabled = !track.enabled;
-                logEvent(`Audio track ${track.label} enabled: ${track.enabled}`);
-            });
-            
-            // Update UI based on first track state
-            if (audioTracks.length > 0) {
-                isMuted = !audioTracks[0].enabled;
-                muteBtn.textContent = isMuted ? '🔊' : '🔇';
-                logEvent(isMuted ? 'Microphone muted' : 'Microphone unmuted');
+        if (call && call.self && typeof call.self.mute === 'function') {
+            if (isMuted) {
+                await call.self.unmute();
+            } else {
+                await call.self.mute();
             }
+            isMuted = !isMuted;
+            muteBtn.textContent = isMuted ? '🔊' : '🔇';
+            logEvent(isMuted ? 'Microphone muted' : 'Microphone unmuted');
         } else {
-            logEvent('No local stream found on roomSession');
+            logEvent('No active call to mute');
         }
     } catch (error) {
-        logEvent('Mute toggle error', { error: error.message });
+        // Fall back to local device mute if the server mute RPC fails.
+        logEvent('Server mute failed, falling back to local track mute', { error: error.message });
+        try {
+            const localStream = call && (call.localStream || (call.self && call.self.localStream));
+            if (localStream) {
+                const nowMuted = !isMuted;
+                localStream.getAudioTracks().forEach(track => { track.enabled = !nowMuted; });
+                isMuted = nowMuted;
+                muteBtn.textContent = isMuted ? '🔊' : '🔇';
+                logEvent(isMuted ? 'Microphone muted (local)' : 'Microphone unmuted (local)');
+            }
+        } catch (e2) {
+            logEvent('Local mute fallback failed', { error: e2.message });
+        }
     }
 }
 
@@ -906,32 +734,23 @@ if (eventLogHeader) {
 window.addEventListener('load', () => {
     logEvent('Page loaded, ready to connect');
     updateGameDisplay();
-    
-    
+
     // Handle page unload - clean up connections
     window.addEventListener('beforeunload', () => {
-        if (roomSession) {
+        if (call) {
             // Try to hangup gracefully but don't wait
-            try {
-                roomSession.hangup();
-            } catch (e) {
-                // Ignore errors during unload
-            }
+            try { call.hangup(); } catch (e) { /* ignore errors during unload */ }
         }
         if (client) {
-            try {
-                client.disconnect();
-            } catch (e) {
-                // Ignore errors during unload
-            }
+            try { client.disconnect(); } catch (e) { /* ignore errors during unload */ }
         }
     });
-    
+
     // Handle page visibility changes (mobile browsers)
     document.addEventListener('visibilitychange', () => {
-        if (document.hidden && roomSession) {
+        if (document.hidden && call) {
             logEvent('Page hidden - connection may be interrupted');
-        } else if (!document.hidden && roomSession) {
+        } else if (!document.hidden && call) {
             logEvent('Page visible again - connection status unknown');
         }
     });
