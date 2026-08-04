@@ -205,12 +205,63 @@
                 inset 0 1px 0 rgba(255,255,255,0.1);
         }
 
+        /* Aspect box for the avatar frame. Must match the aspect of the idle /
+           talking loops or object-fit: contain letterboxes them: 56.25% = 16:9,
+           the ratio of the 1920x1080 videos. (Was 66.67% = 3:2, correct for the
+           previous 1620x1080 pair.) */
         #video-container::before {
             content: '';
             display: block;
-            padding-top: 66.67%;
+            padding-top: 56.25%;
         }
 
+        /* Shown until the call connects, then covered by the video the SDK
+           injects - hence the z-index below rather than hiding it on connect: if
+           the video never attaches you get the still frame instead of a black
+           box. The image is a frame from sigmond_bj_idle.mp4, so the transition
+           into live video is seamless. */
+        #video-placeholder {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            background: url('/placeholder.png') center / cover no-repeat;
+            background-color: #0d0d0d;
+            cursor: pointer;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 6%;
+            transition: filter .18s ease;
+        }
+
+        #video-placeholder:hover,
+        #video-placeholder:focus-visible {
+            filter: brightness(1.08);
+            outline: none;
+        }
+
+        #video-placeholder .placeholder-hint {
+            padding: 10px 22px;
+            border-radius: 999px;
+            border: 1px solid var(--gold-dark, rgba(255, 215, 0, .5));
+            background: rgba(0, 0, 0, .62);
+            /* The artwork behind this is busy, so the chip needs its own
+               backdrop and a shadow to stay legible. */
+            backdrop-filter: blur(3px);
+            box-shadow: 0 4px 18px rgba(0, 0, 0, .6);
+            color: #ffd700;
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: .02em;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, .9);
+            pointer-events: none;
+        }
+
+        #video-placeholder:focus-visible .placeholder-hint {
+            box-shadow: 0 0 0 3px rgba(255, 215, 0, .55), 0 4px 18px rgba(0, 0, 0, .6);
+        }
+
+        /* z-index puts the live video above the placeholder. */
         #video-container video,
         #video-container > div > video {
             position: absolute !important;
@@ -221,14 +272,20 @@
             object-fit: contain !important;
             background: #000;
             pointer-events: none;
+            z-index: 2;
         }
 
-        #video-container > div {
+        /* :not() excludes the placeholder, which is also a direct div child. This
+           selector outranks #video-placeholder on specificity, so without the
+           exclusion it would force the placeholder to z-index 2 as well and the
+           video would only cover it by virtue of coming later in the DOM. */
+        #video-container > div:not(#video-placeholder) {
             position: absolute !important;
             top: 0 !important;
             left: 0 !important;
             width: 100% !important;
             height: 100% !important;
+            z-index: 2;
         }
 
         #video-container video::-webkit-media-controls { display: none !important; }
@@ -820,7 +877,14 @@
     </div>
 
     <div class="main-container">
-        <div id="video-container"></div>
+        <div id="video-container">
+            <!-- Clicking this starts the call, same as #connectBtn. role/tabindex
+                 make it keyboard-reachable; the handler is in app.js. -->
+            <div id="video-placeholder" role="button" tabindex="0"
+                 aria-label="Start the blackjack demo">
+                <span class="placeholder-hint">Click to play</span>
+            </div>
+        </div>
 
         <div class="controls-container">
             <div class="controls">
@@ -901,7 +965,12 @@
         <div id="event-entries"></div>
     </div>
 
+    <!-- ?v= is a cache-buster: bump it whenever app.js changes. The app sends no
+         Cache-Control, so the CDN applies its own TTL by extension and a cached
+         app.js can pair with fresh index.html markup - which is exactly how the
+         placeholder shipped visible but inert during testing. Note the CDN keys on
+         the full URL, so /app.js and /app.js?v=N are separate cache entries. -->
     <script src="signalwire.js"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=1"></script>
 </body>
 </html>
