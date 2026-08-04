@@ -639,12 +639,15 @@ function handleDisconnect() {
     }
     lastStreamSig = '';
 
-    // Clean up anything else left in the container (defensive).
+    // Clean up anything else left in the container (defensive), but keep the
+    // placeholder: it is markup from index.html, not something the SDK added, and
+    // it has to survive teardown or the frame goes blank after a call ends with no
+    // way to click-to-start again.
     const videoContainer = document.getElementById('video-container');
     if (videoContainer) {
-        while (videoContainer.firstChild) {
-            videoContainer.removeChild(videoContainer.firstChild);
-        }
+        Array.from(videoContainer.children).forEach((child) => {
+            if (child.id !== 'video-placeholder') videoContainer.removeChild(child);
+        });
     }
 
     call = null;
@@ -702,6 +705,30 @@ async function toggleMute() {
 if (connectBtn) connectBtn.addEventListener('click', connectToCall);
 if (hangupBtn) hangupBtn.addEventListener('click', hangup);
 if (muteBtn) muteBtn.addEventListener('click', toggleMute);
+
+// The placeholder image doubles as a start control, alongside #connectBtn.
+// Delegated from #video-container because the SDK replaces that container's
+// children on connect, which would drop a listener bound to the placeholder.
+// connectBtn.disabled is the single source of truth for "already connecting or
+// connected", so both entry points cannot double-fire connectToCall().
+const videoContainerEl = document.getElementById('video-container');
+if (videoContainerEl) {
+    videoContainerEl.addEventListener('click', (e) => {
+        if (e.target.closest('#video-placeholder') && connectBtn && !connectBtn.disabled) {
+            connectToCall();
+        }
+    });
+    // The placeholder is role="button" tabindex="0", so it must also activate on
+    // Enter and Space to behave like the button it announces itself as.
+    videoContainerEl.addEventListener('keydown', (e) => {
+        if ((e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar')
+            && e.target.closest('#video-placeholder')
+            && connectBtn && !connectBtn.disabled) {
+            e.preventDefault();   // stop Space from scrolling the page
+            connectToCall();
+        }
+    });
+}
 
 if (showLogCheckbox && eventLog) {
     showLogCheckbox.addEventListener('change', (e) => {
