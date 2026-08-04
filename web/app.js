@@ -826,6 +826,36 @@ if (eventLogHeader) {
 }
 
 // ============================================================================
+// Theme
+// ============================================================================
+
+// The theme is applied to <html> by an inline script in index.html before first
+// paint; this only keeps the <select> in sync and persists changes. Kept separate
+// from blackjackSettings because the pre-paint script has to read it with a bare
+// localStorage.getItem and cannot afford to parse JSON before the CSS applies.
+const THEMES = ['classic', 'midnight', 'signalwire'];
+
+function initTheme() {
+    const sel = document.getElementById('themeSelect');
+    if (!sel) return;
+    let current = 'classic';
+    try {
+        const saved = localStorage.getItem('blackjackTheme');
+        if (THEMES.includes(saved)) current = saved;
+    } catch (e) { /* private mode: fall back to the default */ }
+
+    document.documentElement.setAttribute('data-theme', current);
+    sel.value = current;
+
+    sel.addEventListener('change', () => {
+        const next = THEMES.includes(sel.value) ? sel.value : 'classic';
+        document.documentElement.setAttribute('data-theme', next);
+        try { localStorage.setItem('blackjackTheme', next); } catch (e) { /* ignore */ }
+        logEvent('Theme changed', { theme: next });
+    });
+}
+
+// ============================================================================
 // Voice picker UI
 // ============================================================================
 
@@ -1047,6 +1077,7 @@ async function loadVoices() {
 window.addEventListener('load', () => {
     logEvent('Page loaded, ready to connect');
     updateGameDisplay();
+    initTheme();
     loadVoices();
 
     // Handle page unload - clean up connections

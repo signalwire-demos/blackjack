@@ -36,22 +36,245 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 
+    <!-- Apply the saved theme before first paint. Doing this in <body> or in
+         app.js would show a frame of the default theme first. -->
+    <script>
+        try {
+            var t = localStorage.getItem('blackjackTheme') || 'classic';
+            document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {
+            document.documentElement.setAttribute('data-theme', 'classic');
+        }
+    </script>
+
     <style>
-        :root {
-            --gold: #ffd700;
-            --gold-dark: #b8960c;
-            --gold-light: #ffe44d;
-            --neon-gold: #ffea00;
-            --felt-green: #1a472a;
-            --felt-green-light: #2d5a3f;
-            --felt-green-dark: #0f2818;
-            --casino-red: #8b0000;
-            --casino-black: #0a0a0a;
-            --chip-red: #dc143c;
-            --chip-blue: #1e90ff;
-            --chip-green: #228b22;
-            --chip-black: #1a1a1a;
-            --chip-white: #f5f5f5;
+        /* =====================================================================
+           DESIGN TOKENS
+           ---------------------------------------------------------------------
+           Two layers:
+
+             1. SEMANTIC tokens (--bg, --fg, --accent, --accent-soft, ...) are the
+                source of truth. A theme is nothing but a block that re-maps these.
+             2. LEGACY aliases (--gold, --felt-green, --chip-red, ...) point at the
+                semantic layer. They existed before theming and are used in ~39
+                places; keeping them as aliases means those call sites did not have
+                to be rewritten, and they now follow the active theme for free.
+
+           The accent is used at many opacities, so it also ships as pre-mixed
+           -soft / -line / -glow variants rather than having every call site write
+           its own rgba(); that is what made the old CSS un-themeable, since a
+           literal rgba(255,215,0,.3) cannot follow a token.
+
+           Themes: [data-theme="classic"] (default, below), "midnight",
+           "signalwire". Set on <html> before first paint - see the inline script
+           in <head> - so there is no flash of the wrong theme.
+           ===================================================================== */
+        :root,
+        :root[data-theme="classic"] {
+            color-scheme: dark;
+
+            /* ---- Surfaces ---------------------------------------------- */
+            --bg:            #0a0a0a;
+            --bg-2:          #1a1a2e;   /* mid stop of the page gradient       */
+            --surface:       #1a1a1a;
+            --surface-2:     #0d0d0d;
+            --surface-3:     #222222;
+
+            /* ---- Foreground ------------------------------------------- */
+            --fg:            #ffffff;
+            --fg-muted:      #f0e6c8;
+            --fg-subtle:     #888888;
+            --fg-on-accent:  #0a0a0a;
+
+            /* ---- Accent (gold) ---------------------------------------- */
+            --accent:        #ffd700;
+            --accent-strong: #ffea00;
+            --accent-light:  #ffe44d;
+            --accent-dim:    #b8960c;
+            --accent-soft:   rgba(255, 215, 0, 0.10);
+            --accent-soft-2: rgba(255, 215, 0, 0.20);
+            --accent-line:   rgba(255, 215, 0, 0.30);
+            --accent-glow:   rgba(255, 215, 0, 0.50);
+            --accent-text:   rgba(255, 215, 0, 0.80);
+
+            /* ---- Table / felt ----------------------------------------- */
+            --felt:          #1a472a;
+            --felt-light:    #2d5a3f;
+            --felt-dark:     #0f2818;
+            --felt-wash:     rgba(26, 71, 42, 0.30);
+
+            /* ---- Status ----------------------------------------------- */
+            --success:       #4caf50;
+            --success-soft:  rgba(76, 175, 80, 0.30);
+            --success-glow:  rgba(76, 175, 80, 0.50);
+            --danger:        #f44336;
+            --danger-soft:   rgba(220, 53, 69, 0.30);
+            --accent-red:    #8b0000;
+            --info:          #2196f3;
+            --info-soft:     rgba(33, 150, 243, 0.30);
+            --info-dark:     #1565c0;
+
+            /* ---- Depth ------------------------------------------------ */
+            --scrim:         rgba(0, 0, 0, 0.30);
+            --scrim-2:       rgba(0, 0, 0, 0.50);
+            --scrim-3:       rgba(0, 0, 0, 0.80);
+            --hairline:      rgba(255, 255, 255, 0.10);
+            --hairline-2:    rgba(255, 255, 255, 0.20);
+
+            /* ---- Chips (physical objects: conventional colours, held
+                   constant across themes rather than re-tinted) --------- */
+            --chip-red:      #dc143c;
+            --chip-blue:     #1e90ff;
+            --chip-green:    #228b22;
+            --chip-black:    #1a1a1a;
+            --chip-white:    #f5f5f5;
+            --card-back:     #8b4513;
+            --rail-a:        #8b4513;   /* casino table rail: polished wood  */
+            --rail-b:        #5c2d0a;
+            --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 4.5L6 8.5L10 4.5' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+
+            /* ---- Legacy aliases (pre-theming names, still in use) ------ */
+            --gold:             var(--accent);
+            --gold-dark:        var(--accent-dim);
+            --gold-light:       var(--accent-light);
+            --neon-gold:        var(--accent-strong);
+            --felt-green:       var(--felt);
+            --felt-green-light: var(--felt-light);
+            --felt-green-dark:  var(--felt-dark);
+            --casino-red:       var(--accent-red);
+            --casino-black:     var(--bg);
+
+            /* ---- Buttons / washes / panels ----------------------------- */
+            --btn-ok-a:      #2d7a2d;
+            --btn-ok-b:      #1e5a1e;
+            --btn-ok-hi-a:   #3d8a3d;
+            --btn-ok-hi-b:   #2d6a2d;
+            --btn-no-a:      #8b2020;
+            --btn-no-b:      #6b1010;
+            --btn-no-hi-a:   #9b3030;
+            --btn-no-hi-b:   #7b2020;
+            --btn-no-line:   #dc3545;
+            --page-wash:     rgba(139, 0, 0, 0.15);
+            --page-wash-2:   rgba(139, 0, 0, 0.10);
+            --panel:         rgba(10, 10, 10, 0.85);
+            --panel-strong:  rgba(8, 8, 8, 0.97);
+            --card-back-a:   #1a3366;
+            --card-back-b:   #0d1a33;
+        }
+
+        /* Midnight: cool blue-black, lower glare than the gold casino look.
+           Accent moves to a soft steel blue; felt becomes deep navy. */
+        :root[data-theme="midnight"] {
+            --bg:            #070b14;
+            --bg-2:          #0d1526;
+            --surface:       #111a2b;
+            --surface-2:     #0a111d;
+            --surface-3:     #182643;
+
+            --fg:            #eef3fb;
+            --fg-muted:      #cfdcf0;
+            --fg-subtle:     #7d8ba3;
+            --fg-on-accent:  #06101f;
+
+            --accent:        #7fb3ff;
+            --accent-strong: #a8ccff;
+            --accent-light:  #a8ccff;
+            --accent-dim:    #3d6699;
+            --accent-soft:   rgba(127, 179, 255, 0.10);
+            --accent-soft-2: rgba(127, 179, 255, 0.20);
+            --accent-line:   rgba(127, 179, 255, 0.30);
+            --accent-glow:   rgba(127, 179, 255, 0.45);
+            --accent-text:   rgba(207, 220, 240, 0.90);
+
+            --felt:          #14243d;
+            --felt-light:    #1e3454;
+            --felt-dark:     #0b1728;
+            --felt-wash:     rgba(20, 36, 61, 0.35);
+
+            --success:       #4fd18b;
+            --success-soft:  rgba(79, 209, 139, 0.28);
+            --success-glow:  rgba(79, 209, 139, 0.45);
+            --danger:        #ff6b6b;
+            --danger-soft:   rgba(255, 107, 107, 0.28);
+            --accent-red:    #7a1f2b;
+            --info:          #6cc3ff;
+            --info-soft:     rgba(108, 195, 255, 0.28);
+            --info-dark:     #1d5a8a;
+            --btn-ok-a:      #2a6f5a;
+            --btn-ok-b:      #1b4c3d;
+            --btn-ok-hi-a:   #38876e;
+            --btn-ok-hi-b:   #245e4c;
+            --btn-no-a:      #7a2a3a;
+            --btn-no-b:      #551b26;
+            --btn-no-hi-a:   #8f3646;
+            --btn-no-hi-b:   #66222f;
+            --btn-no-line:   #ff6b6b;
+            --page-wash:     rgba(30, 52, 84, 0.35);
+            --page-wash-2:   rgba(20, 36, 61, 0.25);
+            --panel:         rgba(9, 14, 24, 0.88);
+            --panel-strong:  rgba(6, 10, 18, 0.97);
+            --rail-a:        #2b3f63;   /* brushed steel rail               */
+            --rail-b:        #16233b;
+            --card-back-a:   #1d2c4a;
+            --card-back-b:   #101a2e;
+        }
+
+        /* SignalWire: brand palette. Blue #044EF4 is fills-only per the brand
+           rules and must never be text on a dark surface, so the readable accent
+           is Turquoise and blue is reserved for buttons/borders/glows. */
+        :root[data-theme="signalwire"] {
+            --bg:            #0e0e18;
+            --bg-2:          #181a28;
+            --surface:       #181a28;
+            --surface-2:     #12131f;
+            --surface-3:     #222436;
+
+            --fg:            #f0f0f4;
+            --fg-muted:      #e8e8ec;
+            --fg-subtle:     #73737e;
+            --fg-on-accent:  #0e0e18;
+
+            --accent:        #40e0d0;   /* turquoise: the readable accent      */
+            --accent-strong: #6ff0e3;
+            --accent-light:  #6ff0e3;
+            --accent-dim:    #2b9c92;
+            --accent-soft:   rgba(64, 224, 208, 0.10);
+            --accent-soft-2: rgba(64, 224, 208, 0.20);
+            --accent-line:   rgba(64, 224, 208, 0.30);
+            --accent-glow:   rgba(4, 78, 244, 0.45);    /* blue glow: fill use */
+            --accent-text:   rgba(240, 240, 244, 0.88);
+
+            --felt:          #1b1d33;
+            --felt-light:    #262a49;
+            --felt-dark:     #101120;
+            --felt-wash:     rgba(96, 27, 230, 0.22);   /* purple wash         */
+
+            --success:       #40e0d0;
+            --success-soft:  rgba(64, 224, 208, 0.28);
+            --success-glow:  rgba(64, 224, 208, 0.45);
+            --danger:        #f72a72;                   /* fuchsia             */
+            --danger-soft:   rgba(247, 42, 114, 0.28);
+            --accent-red:    #a01046;
+            --info:          #044ef4;                   /* blue: fills only    */
+            --info-soft:     rgba(4, 78, 244, 0.28);
+            --info-dark:     #0335a8;
+            --btn-ok-a:      #2b9c92;
+            --btn-ok-b:      #1c6d66;
+            --btn-ok-hi-a:   #40e0d0;
+            --btn-ok-hi-b:   #2b9c92;
+            --btn-no-a:      #c11f5c;
+            --btn-no-b:      #8a1441;
+            --btn-no-hi-a:   #f72a72;
+            --btn-no-hi-b:   #a81a55;
+            --btn-no-line:   #f72a72;
+            --page-wash:     rgba(96, 27, 230, 0.22);
+            --page-wash-2:   rgba(4, 78, 244, 0.16);
+            --panel:         rgba(14, 14, 24, 0.88);
+            --panel-strong:  rgba(10, 10, 18, 0.97);
+            --rail-a:        #3a2f6b;   /* purple rail, brand gradient      */
+            --rail-b:        #221a44;
+            --card-back-a:   #262a49;
+            --card-back-b:   #14152a;
         }
 
         * {
@@ -63,7 +286,7 @@
         body {
             font-family: 'Roboto', sans-serif;
             background: var(--casino-black);
-            color: #fff;
+            color: var(--fg);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -79,23 +302,23 @@
             right: 0;
             bottom: 0;
             background:
-                radial-gradient(ellipse at 20% 20%, rgba(139, 0, 0, 0.15) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 80%, rgba(139, 0, 0, 0.1) 0%, transparent 50%),
-                radial-gradient(ellipse at 50% 50%, rgba(26, 71, 42, 0.3) 0%, transparent 70%),
-                linear-gradient(180deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+                radial-gradient(ellipse at 20% 20%, var(--page-wash) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, var(--page-wash-2) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, var(--felt-wash) 0%, transparent 70%),
+                linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 50%, var(--bg) 100%);
             z-index: -1;
         }
 
         /* ============ HEADER ============ */
         .header {
-            background: linear-gradient(180deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 100%);
+            background: linear-gradient(180deg, var(--scrim-3) 0%, var(--scrim-3) 100%);
             padding: 1rem 1.5rem;
             text-align: center;
             border-bottom: 3px solid var(--gold);
             position: relative;
             box-shadow:
-                0 4px 20px rgba(0,0,0,0.5),
-                inset 0 -1px 0 rgba(255,215,0,0.3);
+                0 4px 20px var(--scrim-2),
+                inset 0 -1px 0 var(--accent-line);
         }
 
         .header::after {
@@ -111,7 +334,7 @@
                 var(--gold-light) 50%,
                 var(--gold) 80%,
                 transparent 100%);
-            box-shadow: 0 0 20px var(--gold), 0 0 40px rgba(255,215,0,0.3);
+            box-shadow: 0 0 20px var(--gold), 0 0 40px var(--accent-line);
         }
 
         h1 {
@@ -119,15 +342,15 @@
             color: var(--gold);
             font-size: clamp(1.8rem, 5vw, 3rem);
             text-shadow:
-                0 0 10px rgba(255,215,0,0.5),
-                0 0 20px rgba(255,215,0,0.3),
-                2px 2px 4px rgba(0,0,0,0.8);
+                0 0 10px var(--accent-glow),
+                0 0 20px var(--accent-line),
+                2px 2px 4px var(--scrim-3);
             letter-spacing: 3px;
             font-weight: 700;
         }
 
         .subtitle {
-            color: #888;
+            color: var(--fg-subtle);
             font-size: clamp(0.75rem, 2vw, 0.95rem);
             margin-top: 0.4rem;
             letter-spacing: 2px;
@@ -145,18 +368,18 @@
             gap: 8px;
             color: var(--gold);
             text-decoration: none;
-            background: rgba(255,215,0,0.1);
+            background: var(--accent-soft);
             padding: 8px 16px;
             border-radius: 25px;
-            border: 1px solid rgba(255,215,0,0.3);
+            border: 1px solid var(--accent-line);
             transition: all 0.3s ease;
             z-index: 20;
         }
 
         .github-link:hover {
-            background: rgba(255,215,0,0.2);
+            background: var(--accent-soft-2);
             border-color: var(--gold);
-            box-shadow: 0 0 15px rgba(255,215,0,0.3);
+            box-shadow: 0 0 15px var(--accent-line);
             transform: translateY(-50%) translateY(-2px);
         }
 
@@ -195,14 +418,14 @@
             width: 100%;
             max-width: 810px;
             margin: 0 auto;
-            background: linear-gradient(145deg, #1a1a1a, #0d0d0d);
+            background: linear-gradient(145deg, var(--surface), var(--surface-2));
             border-radius: 20px;
             overflow: hidden;
             border: 3px solid var(--gold-dark);
             box-shadow:
-                0 10px 40px rgba(0,0,0,0.8),
-                0 0 30px rgba(255,215,0,0.1),
-                inset 0 1px 0 rgba(255,255,255,0.1);
+                0 10px 40px var(--scrim-3),
+                0 0 30px var(--accent-soft),
+                inset 0 1px 0 var(--hairline);
         }
 
         /* Aspect box for the avatar frame. Must match the aspect of the idle /
@@ -225,7 +448,7 @@
             inset: 0;
             z-index: 1;
             background: url('/placeholder.png') center / cover no-repeat;
-            background-color: #0d0d0d;
+            background-color: var(--surface-2);
             cursor: pointer;
             display: flex;
             align-items: flex-end;
@@ -243,22 +466,22 @@
         #video-placeholder .placeholder-hint {
             padding: 10px 22px;
             border-radius: 999px;
-            border: 1px solid var(--gold-dark, rgba(255, 215, 0, .5));
-            background: rgba(0, 0, 0, .62);
+            border: 1px solid var(--gold-dark, var(--accent-glow));
+            background: var(--scrim-3);
             /* The artwork behind this is busy, so the chip needs its own
                backdrop and a shadow to stay legible. */
             backdrop-filter: blur(3px);
-            box-shadow: 0 4px 18px rgba(0, 0, 0, .6);
-            color: #ffd700;
+            box-shadow: 0 4px 18px var(--scrim-2);
+            color: var(--accent);
             font-size: 1rem;
             font-weight: 700;
             letter-spacing: .02em;
-            text-shadow: 0 1px 3px rgba(0, 0, 0, .9);
+            text-shadow: 0 1px 3px var(--scrim-3);
             pointer-events: none;
         }
 
         #video-placeholder:focus-visible .placeholder-hint {
-            box-shadow: 0 0 0 3px rgba(255, 215, 0, .55), 0 4px 18px rgba(0, 0, 0, .6);
+            box-shadow: 0 0 0 3px var(--accent-glow), 0 4px 18px var(--scrim-2);
         }
 
         /* z-index puts the live video above the placeholder. */
@@ -300,15 +523,15 @@
             max-width: 900px;
             margin: 0 auto;
             padding: 15px 25px;
-            background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.6) 100%);
+            background: linear-gradient(180deg, var(--scrim-3) 0%, var(--scrim-2) 100%);
             border-radius: 15px;
-            border: 1px solid rgba(255,215,0,0.2);
+            border: 1px solid var(--accent-soft-2);
             display: flex;
             justify-content: center;
             align-items: center;
             gap: 25px;
             flex-wrap: wrap;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+            box-shadow: 0 5px 20px var(--scrim-2);
         }
 
         .controls {
@@ -344,7 +567,7 @@
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            background: linear-gradient(90deg, transparent, var(--hairline-2), transparent);
             transition: left 0.5s ease;
         }
 
@@ -353,41 +576,41 @@
         }
 
         #connectBtn {
-            background: linear-gradient(145deg, #2d7a2d, #1e5a1e);
-            border-color: #4CAF50;
+            background: linear-gradient(145deg, var(--btn-ok-a), var(--btn-ok-b));
+            border-color: var(--success);
             color: white;
-            box-shadow: 0 4px 15px rgba(76,175,80,0.3), inset 0 1px 0 rgba(255,255,255,0.2);
+            box-shadow: 0 4px 15px var(--success-soft), inset 0 1px 0 var(--hairline-2);
         }
 
         #connectBtn:hover:not(:disabled) {
-            background: linear-gradient(145deg, #3d8a3d, #2d6a2d);
-            box-shadow: 0 6px 25px rgba(76,175,80,0.5), 0 0 20px rgba(76,175,80,0.3);
+            background: linear-gradient(145deg, var(--btn-ok-hi-a), var(--btn-ok-hi-b));
+            box-shadow: 0 6px 25px var(--success-glow), 0 0 20px var(--success-soft);
             transform: translateY(-2px);
         }
 
         #hangupBtn {
-            background: linear-gradient(145deg, #8b2020, #6b1010);
-            border-color: #dc3545;
+            background: linear-gradient(145deg, var(--btn-no-a), var(--btn-no-b));
+            border-color: var(--btn-no-line);
             color: white;
-            box-shadow: 0 4px 15px rgba(220,53,69,0.3), inset 0 1px 0 rgba(255,255,255,0.2);
+            box-shadow: 0 4px 15px var(--danger-soft), inset 0 1px 0 var(--hairline-2);
         }
 
         #hangupBtn:hover:not(:disabled) {
-            background: linear-gradient(145deg, #9b3030, #7b2020);
-            box-shadow: 0 6px 25px rgba(220,53,69,0.5), 0 0 20px rgba(220,53,69,0.3);
+            background: linear-gradient(145deg, var(--btn-no-hi-a), var(--btn-no-hi-b));
+            box-shadow: 0 6px 25px var(--danger-soft), 0 0 20px var(--danger-soft);
             transform: translateY(-2px);
         }
 
         #muteBtn {
-            background: linear-gradient(145deg, #1565c0, #0d47a1);
-            border-color: #2196F3;
+            background: linear-gradient(145deg, var(--info-dark), #0d47a1);
+            border-color: var(--info);
             color: white;
-            box-shadow: 0 4px 15px rgba(33,150,243,0.3), inset 0 1px 0 rgba(255,255,255,0.2);
+            box-shadow: 0 4px 15px var(--info-soft), inset 0 1px 0 var(--hairline-2);
         }
 
         #muteBtn:hover:not(:disabled) {
-            background: linear-gradient(145deg, #1976d2, #1565c0);
-            box-shadow: 0 6px 25px rgba(33,150,243,0.5), 0 0 20px rgba(33,150,243,0.3);
+            background: linear-gradient(145deg, #1976d2, var(--info-dark));
+            box-shadow: 0 6px 25px var(--info-soft), 0 0 20px var(--info-soft);
             transform: translateY(-2px);
         }
 
@@ -402,7 +625,7 @@
             font-weight: 500;
             letter-spacing: 1px;
             text-transform: uppercase;
-            text-shadow: 0 0 10px rgba(255,215,0,0.3);
+            text-shadow: 0 0 10px var(--accent-line);
         }
 
         .inline-settings {
@@ -426,15 +649,63 @@
             border: 0;
         }
 
+        .theme-select { position: relative; }
+
+        .theme-select select {
+            appearance: none;
+            -webkit-appearance: none;
+            padding: 8px 30px 8px 12px;
+            border: 1px solid var(--accent-dim);
+            border-radius: 8px;
+            background: var(--panel);
+            color: var(--accent);
+            font: inherit;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .theme-select select:hover { border-color: var(--accent); }
+
+        /* Masked caret rather than a background-image data URI, so it inherits
+           the accent colour and follows the theme. */
+        .theme-select::after {
+            content: '';
+            position: absolute;
+            right: 11px;
+            top: 50%;
+            width: 9px;
+            height: 9px;
+            transform: translateY(-50%);
+            pointer-events: none;
+            background-color: var(--accent);
+            -webkit-mask: var(--caret) center / contain no-repeat;
+            mask: var(--caret) center / contain no-repeat;
+        }
+
+        .theme-select select option {
+            background: var(--surface);
+            color: var(--fg);
+        }
+
+        /* Full-width break inside .controls-container's wrap-row. */
+        .settings-row {
+            flex-basis: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 14px 26px;
+        }
+
         .voice-field {
             display: flex;
             align-items: center;
             gap: 10px;
-            margin-top: 14px;
+            min-width: 0;
         }
 
         .voice-label {
-            color: rgba(255, 215, 0, 0.8);
+            color: var(--accent-text);
             font-size: 12px;
             font-weight: 500;
             white-space: nowrap;
@@ -456,7 +727,7 @@
             padding: 9px 12px;
             border: 1px solid var(--gold-dark);
             border-radius: 8px;
-            background: rgba(10, 10, 10, 0.85);
+            background: var(--panel);
             color: var(--gold);
             font: inherit;
             font-size: 13px;
@@ -467,7 +738,7 @@
         .dropdown-selected:hover,
         .voice-dropdown.open .dropdown-selected {
             border-color: var(--gold);
-            box-shadow: 0 0 12px rgba(255, 215, 0, 0.18);
+            box-shadow: 0 0 12px var(--accent-soft-2);
         }
 
         .dropdown-caret {
@@ -488,8 +759,8 @@
             right: 0;
             border: 1px solid var(--gold-dark);
             border-radius: 10px;
-            background: rgba(8, 8, 8, 0.97);
-            box-shadow: 0 -12px 34px rgba(0, 0, 0, 0.75);
+            background: var(--panel-strong);
+            box-shadow: 0 -12px 34px var(--scrim-3);
             overflow: hidden;
         }
 
@@ -497,8 +768,8 @@
 
         .vendor-filter {
             padding: 9px 11px 10px;
-            border-bottom: 1px solid rgba(255, 215, 0, 0.18);
-            background: rgba(255, 215, 0, 0.04);
+            border-bottom: 1px solid var(--accent-soft-2);
+            background: var(--accent-soft);
         }
 
         .vendor-filter-head {
@@ -511,7 +782,7 @@
             font-weight: 700;
             letter-spacing: .08em;
             text-transform: uppercase;
-            color: rgba(255, 215, 0, 0.65);
+            color: var(--accent-text);
         }
 
         .vendor-filter-actions { display: flex; gap: 5px; }
@@ -521,7 +792,7 @@
             border: 1px solid var(--gold-dark);
             border-radius: 999px;
             background: transparent;
-            color: rgba(255, 215, 0, 0.8);
+            color: var(--accent-text);
             font: inherit;
             font-size: 9px;
             font-weight: 700;
@@ -549,7 +820,7 @@
             gap: 6px;
             min-width: 0;
             cursor: pointer;
-            color: rgba(255, 215, 0, 0.75);
+            color: var(--accent-text);
             font-size: 11px;
         }
 
@@ -561,7 +832,7 @@
 
         .vendor-check input { accent-color: var(--gold); cursor: pointer; }
 
-        .vendor-count { color: rgba(255, 215, 0, 0.45); }
+        .vendor-count { color: var(--accent-line); }
 
         /* A vendor whose list failed to load (Speechify when gated off) is shown
            disabled rather than vanishing, so the absence explains itself. */
@@ -580,7 +851,7 @@
             font-weight: 700;
             letter-spacing: .09em;
             text-transform: uppercase;
-            background: rgba(255, 215, 0, 0.06);
+            background: var(--accent-soft);
             position: sticky;
             top: 0;
         }
@@ -591,22 +862,22 @@
             border-left: 2px solid transparent;
         }
 
-        .dropdown-option:hover { background: rgba(255, 215, 0, 0.10); }
+        .dropdown-option:hover { background: var(--accent-soft); }
 
         .dropdown-option.selected {
             border-left-color: var(--gold);
-            background: rgba(255, 215, 0, 0.14);
+            background: var(--accent-soft-2);
         }
 
         .dropdown-option .option-name {
             display: block;
-            color: #f0e6c8;
+            color: var(--fg-muted);
             font-size: 13px;
         }
 
         .dropdown-option .option-desc {
             display: block;
-            color: rgba(240, 230, 200, 0.5);
+            color: color-mix(in srgb, var(--fg-muted) 55%, transparent);
             font-size: 11px;
         }
 
@@ -621,7 +892,7 @@
             align-items: center;
             gap: 6px;
             cursor: pointer;
-            color: rgba(255,215,0,0.8);
+            color: var(--accent-text);
             font-size: 12px;
             font-weight: 500;
             transition: color 0.3s;
@@ -653,11 +924,11 @@
 
             /* Casino table border */
             border: 8px solid;
-            border-image: linear-gradient(145deg, #8b4513, #5c2d0a, #8b4513) 1;
+            border-image: linear-gradient(145deg, var(--rail-a), var(--rail-b), var(--rail-a)) 1;
             box-shadow:
-                0 15px 50px rgba(0,0,0,0.8),
-                inset 0 0 100px rgba(0,0,0,0.3),
-                inset 0 2px 0 rgba(255,255,255,0.1);
+                0 15px 50px var(--scrim-3),
+                inset 0 0 100px var(--scrim),
+                inset 0 2px 0 var(--hairline);
         }
 
         /* Inner felt border */
@@ -668,7 +939,7 @@
             left: 10px;
             right: 10px;
             bottom: 10px;
-            border: 2px solid rgba(255,215,0,0.3);
+            border: 2px solid var(--accent-line);
             border-radius: 12px;
             pointer-events: none;
         }
@@ -680,11 +951,11 @@
             align-items: center;
             gap: 40px;
             padding: 15px 25px;
-            background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.3) 100%);
+            background: linear-gradient(180deg, var(--scrim-2) 0%, var(--scrim) 100%);
             border-radius: 30px;
             margin-bottom: 20px;
-            border: 2px solid rgba(255,215,0,0.2);
-            box-shadow: inset 0 2px 10px rgba(0,0,0,0.3);
+            border: 2px solid var(--accent-soft-2);
+            box-shadow: inset 0 2px 10px var(--scrim);
         }
 
         .chip-display {
@@ -705,21 +976,21 @@
             font-size: 11px;
             position: relative;
             box-shadow:
-                0 4px 8px rgba(0,0,0,0.4),
-                inset 0 2px 4px rgba(255,255,255,0.3),
-                inset 0 -2px 4px rgba(0,0,0,0.3);
+                0 4px 8px var(--scrim-2),
+                inset 0 2px 4px var(--hairline-2),
+                inset 0 -2px 4px var(--scrim);
             border: 3px dashed rgba(255,255,255,0.8);
         }
 
         .chip-gold {
             background: linear-gradient(145deg, var(--gold), var(--gold-dark));
             color: #000;
-            border-color: #fff;
+            border-color: var(--fg);
         }
 
         .chip-red {
             background: linear-gradient(145deg, #e63946, #9d0208);
-            color: #fff;
+            color: var(--fg);
         }
 
         .chip-stack {
@@ -733,7 +1004,7 @@
             font-size: 1.5rem;
             font-weight: 700;
             color: var(--gold);
-            text-shadow: 0 0 10px rgba(255,215,0,0.5);
+            text-shadow: 0 0 10px var(--accent-glow);
         }
 
         .chip-label {
@@ -753,8 +1024,8 @@
             font-family: 'Playfair Display', serif;
             font-size: 1.5rem;
             font-weight: 700;
-            color: #4CAF50;
-            text-shadow: 0 0 10px rgba(76,175,80,0.5);
+            color: var(--success);
+            text-shadow: 0 0 10px var(--success-glow);
         }
 
         /* ============ HANDS CONTAINER ============ */
@@ -766,15 +1037,15 @@
 
         .hand-area {
             padding: 20px;
-            background: rgba(0,0,0,0.25);
+            background: var(--scrim);
             border-radius: 15px;
-            border: 2px solid rgba(255,255,255,0.1);
-            box-shadow: inset 0 2px 15px rgba(0,0,0,0.2);
+            border: 2px solid var(--hairline);
+            box-shadow: inset 0 2px 15px var(--scrim);
             transition: all 0.3s ease;
         }
 
         .hand-area:hover {
-            border-color: rgba(255,215,0,0.3);
+            border-color: var(--accent-line);
         }
 
         .hand-label {
@@ -784,21 +1055,21 @@
             margin-bottom: 15px;
             color: var(--gold);
             text-align: center;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            text-shadow: 0 2px 4px var(--scrim-2);
             letter-spacing: 2px;
             text-transform: uppercase;
         }
 
         .score {
             display: inline-block;
-            background: linear-gradient(145deg, rgba(255,215,0,0.3), rgba(255,215,0,0.1));
+            background: linear-gradient(145deg, var(--accent-line), var(--accent-soft));
             padding: 5px 15px;
             border-radius: 20px;
             margin-left: 10px;
             font-size: 1rem;
             font-family: 'Roboto', sans-serif;
-            border: 1px solid rgba(255,215,0,0.3);
-            box-shadow: 0 2px 10px rgba(255,215,0,0.2);
+            border: 1px solid var(--accent-line);
+            box-shadow: 0 2px 10px var(--accent-soft-2);
         }
 
         .cards {
@@ -825,8 +1096,8 @@
         .card:hover {
             transform: translateY(-8px) rotateY(5deg);
             box-shadow:
-                0 15px 30px rgba(0,0,0,0.5),
-                0 0 20px rgba(255,215,0,0.2);
+                0 15px 30px var(--scrim-2),
+                0 0 20px var(--accent-soft-2);
         }
 
         .card img {
@@ -834,12 +1105,12 @@
             height: 100%;
             border-radius: 8px;
             box-shadow:
-                0 5px 15px rgba(0,0,0,0.4),
-                inset 0 1px 0 rgba(255,255,255,0.3);
+                0 5px 15px var(--scrim-2),
+                inset 0 1px 0 var(--hairline-2);
         }
 
         .card.face-down img {
-            background: linear-gradient(145deg, #1a3366, #0d1a33);
+            background: linear-gradient(145deg, var(--card-back-a), var(--card-back-b));
         }
 
         /* Card deal animation */
@@ -876,9 +1147,9 @@
         .action-buttons {
             margin-top: 20px;
             padding: 20px;
-            background: rgba(0,0,0,0.3);
+            background: var(--scrim);
             border-radius: 15px;
-            border: 1px solid rgba(255,215,0,0.2);
+            border: 1px solid var(--accent-soft-2);
         }
 
         .voice-hint {
@@ -893,17 +1164,17 @@
         }
 
         .voice-command {
-            background: linear-gradient(145deg, rgba(255,215,0,0.2), rgba(255,215,0,0.05));
+            background: linear-gradient(145deg, var(--accent-soft-2), var(--accent-soft));
             padding: 8px 20px;
             border-radius: 20px;
-            border: 1px solid rgba(255,215,0,0.3);
+            border: 1px solid var(--accent-line);
             font-weight: 600;
             transition: all 0.3s ease;
         }
 
         .voice-command:hover {
-            background: linear-gradient(145deg, rgba(255,215,0,0.3), rgba(255,215,0,0.1));
-            box-shadow: 0 0 15px rgba(255,215,0,0.3);
+            background: linear-gradient(145deg, var(--accent-line), var(--accent-soft));
+            box-shadow: 0 0 15px var(--accent-line);
         }
 
         /* ============ RESULT MESSAGE ============ */
@@ -921,9 +1192,9 @@
             opacity: 0;
             transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             box-shadow:
-                0 0 50px rgba(255,215,0,0.3),
-                0 20px 60px rgba(0,0,0,0.8),
-                inset 0 1px 0 rgba(255,255,255,0.1);
+                0 0 50px var(--accent-line),
+                0 20px 60px var(--scrim-3),
+                inset 0 1px 0 var(--hairline);
         }
 
         .result-message.show {
@@ -936,18 +1207,18 @@
             font-size: 2.5rem;
             font-weight: 700;
             color: var(--gold);
-            text-shadow: 0 0 20px rgba(255,215,0,0.5);
+            text-shadow: 0 0 20px var(--accent-glow);
             margin-bottom: 10px;
         }
 
-        .result-message.win { border-color: #4CAF50; }
-        .result-message.win .result-text { color: #4CAF50; text-shadow: 0 0 20px rgba(76,175,80,0.5); }
+        .result-message.win { border-color: var(--success); }
+        .result-message.win .result-text { color: var(--success); text-shadow: 0 0 20px var(--success-glow); }
 
-        .result-message.lose { border-color: #f44336; }
-        .result-message.lose .result-text { color: #f44336; text-shadow: 0 0 20px rgba(244,67,54,0.5); }
+        .result-message.lose { border-color: var(--danger); }
+        .result-message.lose .result-text { color: var(--danger); text-shadow: 0 0 20px rgba(244,67,54,0.5); }
 
-        .result-message.push { border-color: #2196F3; }
-        .result-message.push .result-text { color: #2196F3; text-shadow: 0 0 20px rgba(33,150,243,0.5); }
+        .result-message.push { border-color: var(--info); }
+        .result-message.push .result-text { color: var(--info); text-shadow: 0 0 20px var(--info-soft); }
 
         .result-message.blackjack {
             border-color: var(--gold);
@@ -955,7 +1226,7 @@
         }
         .result-message.blackjack .result-text {
             color: var(--gold);
-            text-shadow: 0 0 30px rgba(255,215,0,0.8);
+            text-shadow: 0 0 30px var(--accent-text);
             font-size: 3rem;
         }
 
@@ -985,17 +1256,17 @@
         .event-log {
             max-width: 900px;
             margin: 15px auto 0;
-            background: rgba(0,0,0,0.5);
+            background: var(--scrim-2);
             border-radius: 10px;
             overflow: hidden;
             display: none;
-            border: 1px solid rgba(255,215,0,0.1);
+            border: 1px solid var(--accent-soft);
         }
 
         .event-log.active { display: block; }
 
         .event-log-header {
-            background: rgba(0,0,0,0.5);
+            background: var(--scrim-2);
             padding: 12px 15px;
             cursor: pointer;
             display: flex;
@@ -1018,17 +1289,17 @@
         .event-entry {
             margin-bottom: 5px;
             padding: 8px;
-            background: rgba(255,255,255,0.03);
+            background: var(--hairline);
             border-radius: 5px;
             border-left: 3px solid transparent;
         }
 
         .event-entry.user-event {
-            background: rgba(255,215,0,0.05);
+            background: var(--accent-soft);
             border-left-color: var(--gold);
         }
 
-        .event-time { color: #666; font-size: 10px; }
+        .event-time { color: var(--fg-subtle); font-size: 10px; }
 
         /* ============ RESPONSIVE ============ */
         @media (max-width: 900px) {
@@ -1113,6 +1384,22 @@
                  rather than display:none so it stays focusable and accessible); the
                  styled list mirrors it so the casino look survives, since native
                  option lists cannot be themed. -->
+            <!-- Own row: .controls-container is a single centered wrap-row, so
+                 these two pickers would otherwise squeeze in beside the status and
+                 checkboxes and overflow its 900px width. flex-basis:100% forces a
+                 clean break and keeps them centred together. -->
+            <div class="settings-row">
+            <div class="voice-field">
+                <span class="voice-label">🎨 Theme</span>
+                <span class="theme-select">
+                    <select id="themeSelect" aria-label="Colour theme">
+                        <option value="classic">Classic Casino</option>
+                        <option value="midnight">Midnight</option>
+                        <option value="signalwire">SignalWire</option>
+                    </select>
+                </span>
+            </div>
+
             <div class="voice-field">
                 <span class="voice-label">🗣️ Dealer Voice</span>
                 <div class="voice-dropdown" id="voiceDropdown">
@@ -1137,6 +1424,7 @@
                         <div class="dropdown-options" id="dropdownOptions" role="listbox"></div>
                     </div>
                 </div>
+            </div>
             </div>
         </div>
 
@@ -1206,6 +1494,6 @@
          placeholder shipped visible but inert during testing. Note the CDN keys on
          the full URL, so /app.js and /app.js?v=N are separate cache entries. -->
     <script src="signalwire.js"></script>
-    <script src="app.js?v=6"></script>
+    <script src="app.js?v=9"></script>
 </body>
 </html>
