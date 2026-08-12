@@ -8,6 +8,7 @@ Uses stateless architecture with centralized state management
 import json
 import random
 import os
+import re
 import time
 import threading
 import warnings
@@ -16,7 +17,7 @@ from signalwire import AgentBase, AgentServer
 from signalwire.core.function_result import SwaigFunctionResult
 from signalwire.rest import RestClient
 from dotenv import load_dotenv
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 # Load environment variables
 load_dotenv()
@@ -29,6 +30,95 @@ swml_handler_info = {"id": None, "address_id": None, "address": None}
 swml_setup_error = None
 # Serializes the lazy re-registration retry in /get_token.
 _swml_setup_lock = threading.Lock()
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Voice selection
+# ─────────────────────────────────────────────────────────────────────────────
+DEFAULT_VOICE = "elevenlabs.adam"
+
+# Speechify is staged but not live on the platform: selecting one of its voices
+# would build an SWML document the TTS engine cannot satisfy, failing the call.
+# Off unless BJ_ENABLE_SPEECHIFY=1. The same flag drives the static route below,
+# so the dropdown and this allowlist cannot disagree.
+SPEECHIFY_ENABLED = os.environ.get("BJ_ENABLE_SPEECHIFY") == "1"
+
+# The web UI offers voices from these files; the allowlist is built from the same
+# data so a bogus or stale ?voice= is rejected before it reaches the SWML document
+# (an unknown voice makes the platform fall back mid-call, which sounds like a
+# glitch rather than a configuration error).
+_VOICE_FILES = ("inworld_voices.json", "elevenlabs_voices.json",
+                "amazon_voices.json", "azure_voices.json",
+                "gcloud_voices.json", "openai_voices.json",
+                "deepgram_voices.json", "cartesia_voices.json",
+                "rime_voices.json",
+                "smallest_voices.json", "fish_voices.json")
+if SPEECHIFY_ENABLED:
+    _VOICE_FILES += ("speechify_voices.json",)
+
+_known_voices = set()
+for _vf in _VOICE_FILES:
+    try:
+        with open(Path(__file__).parent / "web" / _vf) as _fh:
+            _known_voices.update(
+                v["voiceId"] for v in json.load(_fh)
+                if isinstance(v, dict) and v.get("voiceId"))
+    except Exception as _e:      # a missing vendor file just shrinks the allowlist
+        print(f"Could not load {_vf}: {_e}", flush=True)
+_known_voices.add(DEFAULT_VOICE)
+
+
+def is_known_voice(voice):
+    """True if `voice` is one of the voices the UI actually offers."""
+    return bool(voice) and voice in _known_voices
+
+
+# Voice is chosen in the browser but consumed when the platform renders the SWML
+# document, which is a separate request. Keying it per guest rather than in one
+# shared slot matters: with a single global, one player's pick would change the
+# voice of a call already in progress for someone else.
+#
+# DEPLOYMENT: this map is in-process, so /get_token and the SWML render have to be
+# served by the SAME worker. Run a single worker - `WEB_CONCURRENCY=1` in the
+# environment is enough, gunicorn reads it without touching the image. With more
+# than one worker the two requests can land on different processes, the lookup
+# misses, and the call quietly uses DEFAULT_VOICE instead of the chosen voice.
+# It degrades rather than errors, which makes it easy to misdiagnose as a UI bug.
+_voice_by_guest = {}
+_GUEST_VOICE_TTL = 2 * 3600
+_GUEST_RE = re.compile(
+    r"guest-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I)
+
+
+def _guest_id_from_request(request_data):
+    """Pull the guest id out of an SWML request.
+
+    The field carrying it isn't consistent across call shapes, so match the
+    well-formed guest-<uuid> pattern anywhere in the payload rather than guessing
+    a key.
+    """
+    if not request_data:
+        return None
+    try:
+        m = _GUEST_RE.search(json.dumps(request_data))
+        return m.group(0).lower() if m else None
+    except Exception:
+        return None
+
+
+def set_voice_for_guest(guest_id, voice):
+    """Remember this player's voice pick for the call they're about to place."""
+    if not guest_id or not voice:
+        return
+    now = time.time()
+    _voice_by_guest[guest_id.lower()] = (voice, now)
+    for gid in [g for g, (_v, ts) in _voice_by_guest.items()
+                if now - ts > _GUEST_VOICE_TTL]:
+        _voice_by_guest.pop(gid, None)
+
+
+def get_voice_for_guest(guest_id):
+    entry = _voice_by_guest.get((guest_id or "").lower())
+    return entry[0] if entry else None
 
 # Plain-language definitions for blackjack vocabulary the player may not know.
 GLOSSARY = {
@@ -807,6 +897,26 @@ class BlackjackDealer(AgentBase):
             self.set_param("background_file", f"{base_url}/casino.mp3")
             print(f"Set video URLs to use host: {base_url}")
 
+        # Apply the voice the player picked in the browser. It arrives on
+        # /get_token, which is a different request from this one, so it is looked
+        # up by guest id rather than read from any state on self. Falls back to
+        # DEFAULT_VOICE for inbound calls, which have no browser and no guest id.
+        selected_voice = None
+        guest_id = _guest_id_from_request(request_data)
+        if guest_id:
+            selected_voice = get_voice_for_guest(guest_id)
+            if selected_voice:
+                print(f"Using voice for guest {guest_id[:18]}: {selected_voice}", flush=True)
+        if not selected_voice:
+            selected_voice = DEFAULT_VOICE
+            print(f"Using default voice (no per-guest pick): {selected_voice}", flush=True)
+
+        # add_language() ran once in __init__; languages accumulate, so clear the
+        # list before re-adding or every request appends another English entry.
+        if hasattr(self, '_languages'):
+            self._languages = []
+        self.add_language(name="English", code="en-US", voice=selected_voice)
+
         # Optional post-prompt URL from environment
         post_prompt_url = os.environ.get("POST_PROMPT_URL")
         if post_prompt_url:
@@ -1001,10 +1111,43 @@ def create_server(port=None):
     if web_dir.exists():
         server.serve_static_files(str(web_dir))
 
+    # Hide the Speechify vendor list unless the flag is on. app.js treats a failed
+    # vendor fetch as an empty list and omits that group, so a 404 here removes it
+    # from the dropdown with no client-side change - one flag drives both sides.
+    # Registered as middleware because the static mount above would otherwise
+    # serve the file straight off disk.
+    @server.app.middleware("http")
+    async def _gate_speechify(request, call_next):
+        if (not SPEECHIFY_ENABLED
+                and request.url.path.rstrip("/").endswith("speechify_voices.json")):
+            return Response(status_code=404)
+        return await call_next(request)
+
+    # The vendor lists are replaced in place under fixed filenames and app.js
+    # fetches them by plain name, so a long max-age would keep serving a stale
+    # list after a voice is withdrawn - and a removed id could still be sent to
+    # /get_token. Revalidate every time; these are 1-6 KB.
+    @server.app.middleware("http")
+    async def _voice_list_cache(request, call_next):
+        response = await call_next(request)
+        if request.url.path.endswith("_voices.json"):
+            response.headers["Cache-Control"] = "no-cache"
+        return response
+
     # Add /get_token endpoint for WebRTC calls
     @server.app.get('/get_token')
-    def get_token():
-        """Get a guest token for the web client to call the agent."""
+    def get_token(voice: str = DEFAULT_VOICE):
+        """Get a guest token for the web client to call the agent.
+
+        `voice` is the id chosen in the browser. It is validated against the
+        allowlist built from the vendor lists the UI itself offers, so a stale
+        localStorage value or a hand-edited query cannot put an unknown voice into
+        the SWML document (the platform would fall back mid-call, which sounds
+        like a glitch rather than a config error).
+        """
+        if not is_known_voice(voice):
+            print(f"Rejected unknown voice {voice!r}, using {DEFAULT_VOICE}", flush=True)
+            voice = DEFAULT_VOICE
         sw_host = get_signalwire_host()
         project = os.getenv("SIGNALWIRE_PROJECT_ID", "")
         token = os.getenv("SIGNALWIRE_TOKEN", "")
@@ -1040,6 +1183,16 @@ def create_server(port=None):
                 expire_at=expire_at,
             )
             guest_token = guest.get("token", "")
+
+            # Bind the pick to this guest so the SWML render for their call finds
+            # it (see _guest_id_from_request). The guest id is inside the token
+            # payload, not returned as a field, so read it from the response body.
+            guest_id = _guest_id_from_request(guest)
+            if guest_id:
+                set_voice_for_guest(guest_id, voice)
+                print(f"Bound voice {voice} to guest {guest_id[:18]}", flush=True)
+            else:
+                print(f"No guest id in token response; {voice} will not be applied", flush=True)
 
             return {
                 "token": guest_token,

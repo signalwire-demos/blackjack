@@ -411,6 +411,211 @@
             align-items: center;
         }
 
+        /* ---------------------------------------------------------------------
+           Voice picker
+           A native <select> cannot be styled internally, so the real control is
+           kept offscreen (focusable, announced) and a styled list mirrors it.
+           --------------------------------------------------------------------- */
+        .visually-hidden {
+            position: absolute;
+            width: 1px; height: 1px;
+            margin: -1px; padding: 0;
+            overflow: hidden;
+            clip: rect(0 0 0 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .voice-field {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .voice-label {
+            color: rgba(255, 215, 0, 0.8);
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .voice-dropdown {
+            position: relative;
+            min-width: 240px;
+            max-width: 340px;
+            flex: 1;
+        }
+
+        .dropdown-selected {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 9px 12px;
+            border: 1px solid var(--gold-dark);
+            border-radius: 8px;
+            background: rgba(10, 10, 10, 0.85);
+            color: var(--gold);
+            font: inherit;
+            font-size: 13px;
+            cursor: pointer;
+            transition: border-color .2s, box-shadow .2s;
+        }
+
+        .dropdown-selected:hover,
+        .voice-dropdown.open .dropdown-selected {
+            border-color: var(--gold);
+            box-shadow: 0 0 12px rgba(255, 215, 0, 0.18);
+        }
+
+        .dropdown-caret {
+            font-size: 10px;
+            transition: transform .2s;
+        }
+
+        .voice-dropdown.open .dropdown-caret { transform: rotate(180deg); }
+
+        /* Opens upward: the picker sits low in the controls strip, and a
+           downward panel would run off the bottom of the viewport. */
+        .dropdown-panel {
+            display: none;
+            position: absolute;
+            z-index: 60;
+            bottom: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            border: 1px solid var(--gold-dark);
+            border-radius: 10px;
+            background: rgba(8, 8, 8, 0.97);
+            box-shadow: 0 -12px 34px rgba(0, 0, 0, 0.75);
+            overflow: hidden;
+        }
+
+        .voice-dropdown.open .dropdown-panel { display: block; }
+
+        .vendor-filter {
+            padding: 9px 11px 10px;
+            border-bottom: 1px solid rgba(255, 215, 0, 0.18);
+            background: rgba(255, 215, 0, 0.04);
+        }
+
+        .vendor-filter-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 7px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: rgba(255, 215, 0, 0.65);
+        }
+
+        .vendor-filter-actions { display: flex; gap: 5px; }
+
+        .vendor-filter-actions button {
+            padding: 2px 8px;
+            border: 1px solid var(--gold-dark);
+            border-radius: 999px;
+            background: transparent;
+            color: rgba(255, 215, 0, 0.8);
+            font: inherit;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        .vendor-filter-actions button:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+
+        .vendor-filter-list {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 2px 10px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .vendor-check {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+            cursor: pointer;
+            color: rgba(255, 215, 0, 0.75);
+            font-size: 11px;
+        }
+
+        .vendor-check span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .vendor-check input { accent-color: var(--gold); cursor: pointer; }
+
+        .vendor-count { color: rgba(255, 215, 0, 0.45); }
+
+        /* A vendor whose list failed to load (Speechify when gated off) is shown
+           disabled rather than vanishing, so the absence explains itself. */
+        .vendor-check.is-empty { opacity: .45; cursor: not-allowed; }
+        .vendor-check.is-empty input { cursor: not-allowed; }
+
+        .dropdown-options {
+            max-height: 260px;
+            overflow-y: auto;
+        }
+
+        .dropdown-group-label {
+            padding: 7px 12px 4px;
+            color: var(--gold);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .09em;
+            text-transform: uppercase;
+            background: rgba(255, 215, 0, 0.06);
+            position: sticky;
+            top: 0;
+        }
+
+        .dropdown-option {
+            padding: 7px 12px;
+            cursor: pointer;
+            border-left: 2px solid transparent;
+        }
+
+        .dropdown-option:hover { background: rgba(255, 215, 0, 0.10); }
+
+        .dropdown-option.selected {
+            border-left-color: var(--gold);
+            background: rgba(255, 215, 0, 0.14);
+        }
+
+        .dropdown-option .option-name {
+            display: block;
+            color: #f0e6c8;
+            font-size: 13px;
+        }
+
+        .dropdown-option .option-desc {
+            display: block;
+            color: rgba(240, 230, 200, 0.5);
+            font-size: 11px;
+        }
+
+        @media (max-width: 640px) {
+            .voice-field { flex-wrap: wrap; }
+            .voice-dropdown { min-width: 0; max-width: none; width: 100%; }
+            .vendor-filter-list { grid-template-columns: 1fr; }
+        }
+
         .inline-checkbox {
             display: flex;
             align-items: center;
@@ -903,6 +1108,36 @@
                     <span>Debug Log</span>
                 </label>
             </div>
+
+            <!-- Voice picker. The <select> is the real form control (kept offscreen
+                 rather than display:none so it stays focusable and accessible); the
+                 styled list mirrors it so the casino look survives, since native
+                 option lists cannot be themed. -->
+            <div class="voice-field">
+                <span class="voice-label">🗣️ Dealer Voice</span>
+                <div class="voice-dropdown" id="voiceDropdown">
+                    <select id="voiceSelect" class="visually-hidden" aria-label="Dealer voice"></select>
+                    <button type="button" class="dropdown-selected" id="dropdownSelected"
+                            aria-haspopup="listbox" aria-expanded="false">
+                        <span class="dropdown-text">Loading voices…</span>
+                        <span class="dropdown-caret" aria-hidden="true">▾</span>
+                    </button>
+                    <div class="dropdown-panel" id="dropdownPanel">
+                        <div class="vendor-filter" id="vendorFilter" role="group"
+                             aria-label="Filter voices by vendor">
+                            <div class="vendor-filter-head">
+                                <span>Vendors</span>
+                                <div class="vendor-filter-actions">
+                                    <button type="button" id="vendorAll">All</button>
+                                    <button type="button" id="vendorNone">None</button>
+                                </div>
+                            </div>
+                            <div class="vendor-filter-list" id="vendorFilterList"></div>
+                        </div>
+                        <div class="dropdown-options" id="dropdownOptions" role="listbox"></div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="game-area">
@@ -971,6 +1206,6 @@
          placeholder shipped visible but inert during testing. Note the CDN keys on
          the full URL, so /app.js and /app.js?v=N are separate cache entries. -->
     <script src="signalwire.js"></script>
-    <script src="app.js?v=1"></script>
+    <script src="app.js?v=6"></script>
 </body>
 </html>

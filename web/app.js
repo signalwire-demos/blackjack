@@ -4,6 +4,70 @@ let currentToken = null;
 let currentDestination = null;
 const BASE_URL = '/card_images';  // Absolute path from web root
 
+// ============================================================================
+// Dealer voice selection
+// ============================================================================
+
+// Must match DEFAULT_VOICE in app.py, or the dropdown would show one voice while
+// the dealer spoke in another.
+const DEFAULT_VOICE_ID = 'elevenlabs.adam';
+
+// Vendor list files -> group labels. Order = order in the dropdown: the engines
+// SignalWire documents first, then the undocumented/experimental ones.
+//
+// Each vendor's voiceId follows its own documented shape:
+//   amazon.<voice>:<model>:<lang>   e.g. amazon.Joanna:neural:en-US
+//   azure.<voice>                   locale is baked into the voice code
+//   gcloud.<voice>                  ditto; Neural2/WaveNet tiers only
+//   openai.<voice>[:<model>]        all 6 are multilingual
+//   deepgram.<voice>                e.g. deepgram.aura-2-thalia-en
+//   cartesia.<uuid>[:<model>]       ids are opaque UUIDs
+//   rime.<speaker>                  Mist v2 is the platform default, so these
+//                                   need no separate model parameter
+//
+// speechify is gated server-side (BJ_ENABLE_SPEECHIFY): the engine is not live on
+// the platform, so its file 404s when off and the fetch below fails soft, dropping
+// the group. app.py's allowlist is driven by the same flag, so the dropdown and
+// the server cannot disagree about what is selectable.
+const VOICE_VENDORS = [
+    { file: '/inworld_voices.json',    label: 'Inworld' },
+    { file: '/elevenlabs_voices.json', label: 'ElevenLabs' },
+    { file: '/amazon_voices.json',     label: 'Amazon Polly' },
+    { file: '/azure_voices.json',      label: 'Microsoft Azure' },
+    { file: '/gcloud_voices.json',     label: 'Google Cloud' },
+    { file: '/openai_voices.json',     label: 'OpenAI' },
+    { file: '/deepgram_voices.json',   label: 'Deepgram' },
+    { file: '/cartesia_voices.json',   label: 'Cartesia' },
+    { file: '/rime_voices.json',       label: 'Rime' },
+    { file: '/smallest_voices.json',   label: 'Smallest.ai' },
+    { file: '/fish_voices.json',       label: 'Fish.audio' },
+    { file: '/speechify_voices.json',  label: 'Speechify' },
+];
+
+// Persisted UI state. Guard the shape: JSON.parse('null') or '5' would replace the
+// object and the next property read would throw at module scope, taking out the
+// rest of app.js including every event listener registration.
+let blackjackSettings = { voiceSelection: null, disabledVendors: [] };
+try {
+    const saved = localStorage.getItem('blackjackSettings');
+    if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            blackjackSettings = Object.assign(blackjackSettings, parsed);
+        }
+    }
+} catch (e) {
+    console.warn('Ignoring unreadable blackjackSettings:', e);
+}
+
+function saveVoiceSettings() {
+    try {
+        localStorage.setItem('blackjackSettings', JSON.stringify(blackjackSettings));
+    } catch (e) {
+        console.warn('Could not persist blackjackSettings:', e);
+    }
+}
+
 // SignalWire v4 (@signalwire/js) connection state.
 let client;
 let call;
@@ -411,7 +475,11 @@ function handleUserEvent(params) {
 // validates the payload so a falsy token never silently reaches the SDK (which
 // would surface as a misleading InvalidCredentialsError).
 async function fetchGuestToken() {
-    const resp = await fetch('/get_token');
+    // The voice rides along with the token request: the server binds it to the
+    // guest id it mints here, and the SWML render for this call looks it up by
+    // that id. Sending it on any later request would be too late.
+    const voice = blackjackSettings.voiceSelection || DEFAULT_VOICE_ID;
+    const resp = await fetch(`/get_token?voice=${encodeURIComponent(voice)}`);
     let data = await resp.json();
     if (Array.isArray(data)) data = data[0] || {};          // legacy [{...}, 500] shape
     if (!resp.ok || data.error) throw new Error(data.error || `HTTP ${resp.status}`);
@@ -757,10 +825,229 @@ if (eventLogHeader) {
     });
 }
 
+// ============================================================================
+// Voice picker UI
+// ============================================================================
+
+// '/amazon_voices.json' -> 'amazon'. Keyed off the filename rather than the label
+// so relabelling a vendor in the UI cannot silently reset saved filters.
+const vendorKey = (file) => file.replace(/^\/|_voices\.json$/g, '');
+
+async function loadVoices() {
+    const dropdown  = document.getElementById('voiceDropdown');
+    const selected  = document.getElementById('dropdownSelected');
+    const optionsEl = document.getElementById('dropdownOptions');
+    const listEl    = document.getElementById('vendorFilterList');
+    const selectEl  = document.getElementById('voiceSelect');
+    const textEl    = selected && selected.querySelector('.dropdown-text');
+    if (!dropdown || !selected || !optionsEl || !selectEl) return;
+
+    // Fetched once; filtering re-renders from this cache. Refetching twelve files
+    // on every checkbox click would be wasteful and could flicker.
+    const lists = await Promise.all(VOICE_VENDORS.map(async (v) => {
+        try {
+            const r = await fetch(v.file);
+            if (!r.ok) return [];
+            const j = await r.json();
+            return Array.isArray(j) ? j : [];
+        } catch (e) {
+            return [];          // gated or missing vendor file just drops its group
+        }
+    }));
+
+    const available = VOICE_VENDORS.filter((v, i) => lists[i].length);
+    if (!available.length) {
+        if (textEl) textEl.textContent = 'Adam (default)';
+        blackjackSettings.voiceSelection = DEFAULT_VOICE_ID;
+        return;
+    }
+
+    // Persist what the user turned OFF, not what they left on. An allowlist would
+    // freeze whatever happened to be available at first load, so a vendor added
+    // later - or one whose fetch failed transiently - would stay silently
+    // unchecked forever, indistinguishable from a deliberate choice.
+    let disabled = Array.isArray(blackjackSettings.disabledVendors)
+        ? blackjackSettings.disabledVendors.slice() : [];
+    const isEnabled = (v) => !disabled.includes(vendorKey(v.file));
+
+    function selectVoice(voiceId, displayName) {
+        blackjackSettings.voiceSelection = voiceId;
+        selectEl.value = voiceId;
+        if (textEl) textEl.textContent = displayName;
+        optionsEl.querySelectorAll('.dropdown-option').forEach((o) => {
+            o.classList.toggle('selected', o.dataset.value === voiceId);
+            o.setAttribute('aria-selected', o.dataset.value === voiceId ? 'true' : 'false');
+        });
+        saveVoiceSettings();
+    }
+
+    function render() {
+        selectEl.innerHTML = '';
+        optionsEl.innerHTML = '';
+        let firstId = null, firstName = null;
+        let hasDefault = false, savedName = null, total = 0;
+
+        VOICE_VENDORS.forEach((vendor, i) => {
+            const voices = lists[i];
+            if (!voices.length || !isEnabled(vendor)) return;
+
+            const groupLabel = document.createElement('div');
+            groupLabel.className = 'dropdown-group-label';
+            groupLabel.textContent = vendor.label;
+            optionsEl.appendChild(groupLabel);
+
+            const optGroup = document.createElement('optgroup');
+            optGroup.label = vendor.label;
+
+            voices.forEach((voice) => {
+                const nativeOpt = document.createElement('option');
+                nativeOpt.value = voice.voiceId;
+                nativeOpt.textContent = voice.displayName;
+                optGroup.appendChild(nativeOpt);
+
+                const row = document.createElement('div');
+                row.className = 'dropdown-option';
+                row.dataset.value = voice.voiceId;
+                row.setAttribute('role', 'option');
+                // textContent, not innerHTML: these strings are ours today, but
+                // interpolating vendor data into markup is a habit worth avoiding.
+                const name = document.createElement('span');
+                name.className = 'option-name';
+                name.textContent = voice.displayName;
+                const desc = document.createElement('span');
+                desc.className = 'option-desc';
+                desc.textContent = voice.description || '';
+                row.append(name, desc);
+                row.addEventListener('click', () => {
+                    selectVoice(voice.voiceId, voice.displayName);
+                    dropdown.classList.remove('open');
+                    selected.setAttribute('aria-expanded', 'false');
+                });
+                optionsEl.appendChild(row);
+
+                if (!firstId) { firstId = voice.voiceId; firstName = voice.displayName; }
+                if (voice.voiceId === DEFAULT_VOICE_ID) hasDefault = true;
+                if (voice.voiceId === blackjackSettings.voiceSelection) savedName = voice.displayName;
+                total++;
+            });
+
+            selectEl.appendChild(optGroup);
+        });
+
+        // Every vendor unchecked: keep the last good pick so an in-flight
+        // /get_token still sends something valid, and say so rather than showing
+        // an empty list.
+        if (!total) {
+            optionsEl.innerHTML = '';
+            const empty = document.createElement('div');
+            empty.className = 'dropdown-group-label';
+            empty.textContent = 'No vendors selected';
+            optionsEl.appendChild(empty);
+            return;
+        }
+
+        if (savedName) {
+            selectVoice(blackjackSettings.voiceSelection, savedName);
+        } else {
+            // No pick, or the saved one's vendor was just unchecked. Leaving a dead
+            // id in place would send it to /get_token, where the server would
+            // silently fall back - better to correct it here and show the truth.
+            const useDefault = hasDefault;
+            const id = useDefault ? DEFAULT_VOICE_ID : firstId;
+            let name = firstName;
+            if (useDefault) {
+                const row = optionsEl.querySelector(`.dropdown-option[data-value="${CSS.escape(id)}"] .option-name`);
+                if (row) name = row.textContent;
+            }
+            if (blackjackSettings.voiceSelection && !savedName) {
+                console.warn(`Voice '${blackjackSettings.voiceSelection}' is not in the enabled vendors - falling back to ${id}`);
+            }
+            selectVoice(id, name);
+        }
+    }
+
+    function buildFilter() {
+        if (!listEl) return;
+        listEl.innerHTML = '';
+        VOICE_VENDORS.forEach((vendor, i) => {
+            const count = lists[i].length;
+            const key = vendorKey(vendor.file);
+            const label = document.createElement('label');
+            label.className = 'vendor-check' + (count ? '' : ' is-empty');
+            const box = document.createElement('input');
+            box.type = 'checkbox';
+            box.checked = count > 0 && !disabled.includes(key);
+            box.disabled = !count;
+            const text = document.createElement('span');
+            text.textContent = vendor.label + ' ';
+            const num = document.createElement('span');
+            num.className = 'vendor-count';
+            num.textContent = count ? `(${count})` : '(unavailable)';
+            text.appendChild(num);
+            label.append(box, text);
+            listEl.appendChild(label);
+
+            box.addEventListener('change', () => {
+                disabled = box.checked
+                    ? disabled.filter((k) => k !== key)
+                    : disabled.concat([key]).filter((k, n, a) => a.indexOf(k) === n);
+                blackjackSettings.disabledVendors = disabled;
+                saveVoiceSettings();
+                render();
+            });
+        });
+    }
+
+    function setAll(on) {
+        disabled = on ? [] : available.map((v) => vendorKey(v.file));
+        blackjackSettings.disabledVendors = disabled;
+        saveVoiceSettings();
+        buildFilter();
+        render();
+    }
+
+    buildFilter();
+    render();
+
+    document.getElementById('vendorAll')?.addEventListener('click', () => setAll(true));
+    document.getElementById('vendorNone')?.addEventListener('click', () => setAll(false));
+
+    selected.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const open = dropdown.classList.toggle('open');
+        selected.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!dropdown.contains(e.target)) {
+            dropdown.classList.remove('open');
+            selected.setAttribute('aria-expanded', 'false');
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && dropdown.classList.contains('open')) {
+            dropdown.classList.remove('open');
+            selected.setAttribute('aria-expanded', 'false');
+            selected.focus();
+        }
+    });
+
+    // Keep the offscreen <select> authoritative for keyboard/AT users.
+    selectEl.addEventListener('change', () => {
+        const opt = selectEl.selectedOptions[0];
+        if (opt) selectVoice(opt.value, opt.textContent);
+    });
+
+    const enabledCount = available.filter(isEnabled).length;
+    console.log(`Loaded voices: ${selectEl.querySelectorAll('option').length} from ${enabledCount}/${available.length} vendors`);
+}
+
 // Initialize on page load
 window.addEventListener('load', () => {
     logEvent('Page loaded, ready to connect');
     updateGameDisplay();
+    loadVoices();
 
     // Handle page unload - clean up connections
     window.addEventListener('beforeunload', () => {
