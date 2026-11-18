@@ -4192,7 +4192,7 @@ var require_merge$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 	var empty_1$7 = require_empty();
 	var args_1$8 = require_args();
 	var from_1$4 = require_from();
-	function merge$6() {
+	function merge$7() {
 		var args = [];
 		for (var _i = 0; _i < arguments.length; _i++) args[_i] = arguments[_i];
 		var scheduler = args_1$8.popScheduler(args);
@@ -4200,7 +4200,7 @@ var require_merge$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		var sources = args;
 		return !sources.length ? empty_1$7.EMPTY : sources.length === 1 ? innerFrom_1$31.innerFrom(sources[0]) : mergeAll_1$3.mergeAll(concurrent)(from_1$4.from(sources, scheduler));
 	}
-	exports.merge = merge$6;
+	exports.merge = merge$7;
 }));
 
 //#endregion
@@ -6082,7 +6082,7 @@ var require_merge = /* @__PURE__ */ __commonJSMin(((exports) => {
 	var mergeAll_1$2 = require_mergeAll();
 	var args_1$3 = require_args();
 	var from_1$1 = require_from();
-	function merge$5() {
+	function merge$6() {
 		var args = [];
 		for (var _i = 0; _i < arguments.length; _i++) args[_i] = arguments[_i];
 		var scheduler = args_1$3.popScheduler(args);
@@ -6091,7 +6091,7 @@ var require_merge = /* @__PURE__ */ __commonJSMin(((exports) => {
 			mergeAll_1$2.mergeAll(concurrent)(from_1$1.from(__spreadArray$8([source], __read$8(args)), scheduler)).subscribe(subscriber);
 		});
 	}
-	exports.merge = merge$5;
+	exports.merge = merge$6;
 }));
 
 //#endregion
@@ -6829,12 +6829,12 @@ var require_skip = /* @__PURE__ */ __commonJSMin(((exports) => {
 	Object.defineProperty(exports, "__esModule", { value: true });
 	exports.skip = void 0;
 	var filter_1$3 = require_filter();
-	function skip$3(count$1) {
+	function skip$5(count$1) {
 		return filter_1$3.filter(function(_, index) {
 			return count$1 <= index;
 		});
 	}
-	exports.skip = skip$3;
+	exports.skip = skip$5;
 }));
 
 //#endregion
@@ -6938,7 +6938,7 @@ var require_switchMap = /* @__PURE__ */ __commonJSMin(((exports) => {
 	var innerFrom_1$6 = require_innerFrom();
 	var lift_1$13 = require_lift();
 	var OperatorSubscriber_1$11 = require_OperatorSubscriber();
-	function switchMap$7(project, resultSelector) {
+	function switchMap$8(project, resultSelector) {
 		return lift_1$13.operate(function(source, subscriber) {
 			var innerSubscriber = null;
 			var index = 0;
@@ -6962,7 +6962,7 @@ var require_switchMap = /* @__PURE__ */ __commonJSMin(((exports) => {
 			}));
 		});
 	}
-	exports.switchMap = switchMap$7;
+	exports.switchMap = switchMap$8;
 }));
 
 //#endregion
@@ -9022,6 +9022,184 @@ var Destroyable = class {
 };
 
 //#endregion
+//#region src/core/constants.ts
+const INVITE_VERSION = 1e3;
+const DEFAULT_ICE_CANDIDATE_TIMEOUT_MS = 600;
+const DEFAULT_ICE_GATHERING_TIMEOUT_MS = 6e3;
+const DEFAULT_RECONNECT_CALLS_TIMEOUT_MS = 300 * 1e3;
+const DEFAULT_CONNECTION_TIMEOUT_MS = 1e4;
+/**
+* The server sends `signalwire.ping` every 10s. A socket that stays silent
+* longer than this is half-open: the server has dropped the session but the
+* browser never fired `close`.
+*/
+const SERVER_PING_TIMEOUT_MS = 15e3;
+/**
+* How long a `signalwire.ping` the client sends after the server's pings
+* stopped may take to be answered. The server defers its own pings while its
+* threadpool is congested, so silence alone does not mean the socket is dead.
+*/
+const SERVER_PING_PROBE_TIMEOUT_MS = 1e4;
+/**
+* How long call setup may wait for the network, measured from local media
+* settling until the member id arrives.
+*
+* Local media acquisition is deliberately NOT inside this: a permission prompt
+* or a device picker is human time, and a human may take as long as they like
+* without spending the server's budget. The clock starts when acquisition ends.
+*
+* Must exceed `iceGatheringTimeout + the RPC timeout`, which both run inside it.
+*/
+const DEFAULT_CALL_SIGNALING_TIMEOUT_MS = 12e3;
+/**
+* How long an auxiliary leg (screen share, additional device) may take to
+* connect once its media is in hand.
+*
+* One bound for both: the picker is human time and sits outside it. What remains
+* — offer, ICE, invite, answer, DTLS — is the same work for either leg kind.
+*/
+const DEFAULT_AUX_LEG_CONNECT_TIMEOUT_MS = 15e3;
+const DEFAULT_RECONNECT_DELAY_MIN_MS = 100;
+const DEFAULT_RECONNECT_DELAY_MAX_MS = 3e3;
+const DEFAULT_DEVICE_DEBOUNCE_TIME_MS = 1500;
+const DEFAULT_DEVICE_POLLING_INTERVAL_MS = 0;
+const PREFERENCES_STORAGE_KEY = "sw:preferences";
+/** Scope value that enables automatic token refresh. */
+const SAT_REFRESH_SCOPE = "sat:refresh";
+/** API endpoints for device token operations. */
+const DEVICE_TOKEN_ENDPOINT = "/api/fabric/subscriber/devices/token";
+const DEVICE_REFRESH_ENDPOINT = "/api/fabric/subscriber/devices/refresh";
+/** Default device token TTL in seconds (15 minutes). */
+const DEVICE_TOKEN_DEFAULT_EXPIRE_IN = 900;
+/** Buffer time in milliseconds before expiry to trigger refresh. */
+const DEVICE_TOKEN_REFRESH_BUFFER_MS = 3e4;
+/** Maximum retry attempts for device token refresh on transient failure. */
+const DEVICE_TOKEN_REFRESH_MAX_RETRIES = 3;
+/** Base delay in milliseconds for exponential backoff on refresh retry. */
+const DEVICE_TOKEN_REFRESH_RETRY_BASE_MS = 1e3;
+/** Maximum retry attempts for developer credential refresh on transient failure. */
+const CREDENTIAL_REFRESH_MAX_RETRIES = 5;
+/** Base delay in milliseconds for exponential backoff on credential refresh retry. */
+const CREDENTIAL_REFRESH_RETRY_BASE_MS = 1e3;
+/** Maximum delay in milliseconds for credential refresh backoff. */
+const CREDENTIAL_REFRESH_MAX_DELAY_MS = 3e4;
+/** Buffer in milliseconds before token expiry to trigger refresh. */
+const CREDENTIAL_REFRESH_BUFFER_MS = 5e3;
+/**
+* Clock-skew allowance (ms) for treating an in-memory credential as expired
+* when deciding whether a fresh (re)connect must re-mint the token before
+* authenticating. A token within this window of its `expiry_at` is treated as
+* stale so the reconnect re-mints via the credential provider instead of
+* replaying a dead token (which the server rejects with -32003).
+*/
+const CREDENTIAL_EXPIRY_SKEW_MS = 3e4;
+/**
+* Maximum time the coordinator will wait for `DeviceTokenManager.activate()`
+* to resolve before treating the activation as failed and falling back to
+* the developer-provided refresh path. Prevents a wedged HTTP layer from
+* leaving the session with no active refresh mechanism.
+*/
+const CREDENTIAL_ACTIVATE_TIMEOUT_MS = 3e4;
+/** JSON-RPC error code for requester validation failure (corrupted auth state). */
+const RPC_ERROR_REQUESTER_VALIDATION_FAILED = -32003;
+/** JSON-RPC error code for invalid params (e.g., missing authentication block). */
+const RPC_ERROR_INVALID_PARAMS = -32602;
+/** JSON-RPC error code for authentication failure (invalid token, missing DPoP, etc.). */
+const RPC_ERROR_AUTHENTICATION_FAILED = -32002;
+/** Error names browsers use for a media permission denial (user or policy). */
+const MEDIA_ACCESS_DENIAL_NAMES = [
+	"NotAllowedError",
+	"SecurityError",
+	"PermissionDeniedError"
+];
+/** Error names browsers use when the capture hardware is already held exclusively. */
+const MEDIA_DEVICE_IN_USE_NAMES = ["NotReadableError", "TrackStartError"];
+/** Default polling interval for RTCPeerConnection.getStats() in milliseconds. */
+const DEFAULT_STATS_POLLING_INTERVAL_MS = 1e3;
+/** Number of initial samples used to build a baseline for spike detection. */
+const DEFAULT_STATS_BASELINE_SAMPLES = 10;
+/** Duration in ms with no inbound audio packets before emitting a critical issue. */
+const DEFAULT_STATS_NO_PACKET_THRESHOLD_MS = 2e3;
+/** Multiplier applied to baseline RTT to detect a warning-level RTT spike. */
+const DEFAULT_STATS_RTT_SPIKE_MULTIPLIER = 3;
+/** Packet loss fraction (0-1) above which a warning is emitted. */
+const DEFAULT_STATS_PACKET_LOSS_THRESHOLD = .05;
+/** Multiplier applied to baseline jitter to detect a jitter spike. */
+const DEFAULT_STATS_JITTER_SPIKE_MULTIPLIER = 4;
+/** Number of seconds of metrics history to retain. */
+const DEFAULT_STATS_HISTORY_SIZE = 30;
+/** Maximum keyframe requests allowed within a single burst window. */
+const DEFAULT_KEYFRAME_MAX_BURST$1 = 3;
+/** Duration of the keyframe burst window in milliseconds. */
+const DEFAULT_KEYFRAME_BURST_WINDOW_MS$1 = 3e3;
+/** Cooldown period in ms after burst limit is reached before allowing more keyframes. */
+const DEFAULT_KEYFRAME_COOLDOWN_MS$1 = 1e4;
+/** Minimum time between re-INVITE attempts in milliseconds. */
+const DEFAULT_REINVITE_DEBOUNCE_TIME_MS = 1e4;
+/** Maximum number of re-INVITE attempts per call. */
+const DEFAULT_REINVITE_MAX_ATTEMPTS = 3;
+/** Timeout for a single re-INVITE attempt in milliseconds. */
+const DEFAULT_REINVITE_TIMEOUT_MS = 5e3;
+/** Debounce window in ms to collapse multiple detection signals into one trigger. */
+const DEFAULT_RECOVERY_DEBOUNCE_TIME_MS = 2e3;
+/** Cooldown period in ms between recovery attempts. */
+const DEFAULT_RECOVERY_COOLDOWN_MS = 1e4;
+/** Grace period in ms before treating ICE 'disconnected' as a failure. */
+const DEFAULT_ICE_DISCONNECTED_GRACE_PERIOD_MS = 3e3;
+/** Timeout for a single ICE restart attempt in milliseconds. */
+const DEFAULT_ICE_RESTART_TIMEOUT_MS$1 = 5e3;
+/** Maximum recovery attempts before emitting 'max_attempts_reached'. */
+const DEFAULT_MAX_RECOVERY_ATTEMPTS = 3;
+/** Upper bound in ms for waiting on iceGatheringState === 'complete' after an ICE restart. */
+const ICE_GATHERING_COMPLETE_TIMEOUT_MS = 1e4;
+/** Upper bound in ms for waiting on RTCPeerConnection.connectionState === 'connected' after a recovery ICE restart. */
+const PEER_CONNECTION_RECOVERY_WAIT_MS = 5e3;
+/** Polling interval in ms while waiting for RTCPeerConnection.connectionState to transition. */
+const PEER_CONNECTION_RECOVERY_POLL_MS = 100;
+/** Polling interval for LocalAudioPipeline.level$ (ms). ~30fps is smooth for meters. */
+const AUDIO_LEVEL_POLL_INTERVAL_MS = 33;
+/** RMS level threshold (0..1) above which the local participant is considered speaking. */
+const VAD_THRESHOLD = .03;
+/** Hold window in ms below the threshold before speaking$ flips back to false. */
+const VAD_HOLD_MS = 250;
+/** Whether to persist device selections to storage by default. */
+const DEFAULT_PERSIST_DEVICE_SELECTION = true;
+/** Whether to auto-apply device changes to active calls by default. */
+const DEFAULT_SYNC_DEVICES_TO_ACTIVE_CALLS = true;
+/** Storage keys for persisted device selections. */
+const DEVICE_STORAGE_KEY_AUDIO_INPUT = "sw:device:audioinput";
+const DEVICE_STORAGE_KEY_AUDIO_OUTPUT = "sw:device:audiooutput";
+const DEVICE_STORAGE_KEY_VIDEO_INPUT = "sw:device:videoinput";
+/** Whether to auto-mute video when the tab becomes hidden. */
+const DEFAULT_AUTO_MUTE_VIDEO_ON_HIDDEN = false;
+/** Whether to re-enumerate devices when the page becomes visible. */
+const DEFAULT_REFRESH_DEVICES_ON_VISIBLE = true;
+/** Whether to check peer connection health when the page becomes visible. */
+const DEFAULT_CHECK_CONNECTION_ON_VISIBLE = true;
+/** Whether automatic video degradation on low bandwidth is enabled. */
+const DEFAULT_ENABLE_AUTO_DEGRADATION = true;
+/** Bitrate in kbps below which video is automatically disabled. */
+const DEFAULT_DEGRADATION_BITRATE_THRESHOLD_KBPS = 150;
+/** Bitrate in kbps above which video is automatically re-enabled (hysteresis). */
+const DEFAULT_DEGRADATION_RECOVERY_THRESHOLD_KBPS = 300;
+/** Whether relay-only escalation is enabled as a last-resort recovery tier. */
+const DEFAULT_ENABLE_RELAY_FALLBACK = true;
+/** Whether to listen for browser online/offline/connection events. */
+const DEFAULT_ENABLE_NETWORK_CHANGE_DETECTION = true;
+/** Whether to intercept server-sent media-timeout hangups and attempt recovery. */
+const DEFAULT_ENABLE_SERVER_HANGUP_INTERCEPTION = true;
+/** Default video track constraints applied when video is enabled without explicit constraints. */
+const DEFAULT_VIDEO_CONSTRAINTS = {
+	width: { ideal: 1280 },
+	height: { ideal: 720 },
+	aspectRatio: 16 / 9
+};
+/** Whether stereo Opus is enabled by default. */
+const DEFAULT_STEREO_AUDIO = false;
+/** Max average bitrate for stereo Opus in bits per second. */
+const DEFAULT_STEREO_MAX_AVERAGE_BITRATE = 51e4;
+
+//#endregion
 //#region src/core/errors.ts
 var UnexpectedError = class extends Error {
 	constructor(at, options) {
@@ -9150,6 +9328,20 @@ var CallCreateError = class extends Error {
 		this.name = "CallCreateError";
 	}
 };
+var CallNotReadyError = class extends Error {
+	constructor(callId, options) {
+		super(`Call "${callId}" has no self member context yet: selfId/nodeId have not been received from the server`, options);
+		this.callId = callId;
+		this.name = "CallNotReadyError";
+	}
+};
+var ParticipantNotReadyError = class extends Error {
+	constructor(memberId, options) {
+		super(`Participant "${memberId}" has no call context yet: its member state (call_id/node_id) has not been received from the server`, options);
+		this.memberId = memberId;
+		this.name = "ParticipantNotReadyError";
+	}
+};
 var JSONRPCError = class extends Error {
 	constructor(code, message, data, options, requestId) {
 		super(message, options);
@@ -9221,6 +9413,32 @@ var CollectionFetchError = class extends Error {
 		this.name = "CollectionFetchError";
 	}
 };
+/**
+* An auxiliary leg did not connect within its budget. Typed rather than a bare
+* RxJS `TimeoutError` so the leg and cause survive.
+*/
+var AuxiliaryLegTimeoutError = class extends Error {
+	constructor(leg, originalError) {
+		super(`Timed out waiting for the ${leg} connection to be established`, { cause: originalError });
+		this.leg = leg;
+		this.originalError = originalError;
+		this.name = "AuxiliaryLegTimeoutError";
+	}
+};
+/**
+* An auxiliary leg was removed before it finished connecting.
+*
+* Typed rather than a bare resolve so a caller awaiting the start can tell a
+* cancel apart from a share that actually came up — the public methods return
+* `void`, so the promise is the only signal they have.
+*/
+var AuxiliaryLegCancelledError = class extends Error {
+	constructor(leg) {
+		super(`The ${leg} leg was removed before it finished connecting`);
+		this.leg = leg;
+		this.name = "AuxiliaryLegCancelledError";
+	}
+};
 var MediaTrackError = class extends Error {
 	constructor(operation, kind, originalError) {
 		super(`Media track ${operation} failed for ${kind}`, { cause: originalError instanceof Error ? originalError : void 0 });
@@ -9228,6 +9446,53 @@ var MediaTrackError = class extends Error {
 		this.kind = kind;
 		this.originalError = originalError;
 		this.name = "MediaTrackError";
+	}
+};
+/** True when a `getUserMedia`/`getDisplayMedia` rejection is a permission denial. */
+function isMediaAccessDenial(originalError) {
+	return originalError instanceof Error && MEDIA_ACCESS_DENIAL_NAMES.includes(originalError.name);
+}
+/** True when a `getUserMedia` rejection means the hardware is already held exclusively. */
+function isMediaDeviceInUse(originalError) {
+	return originalError instanceof Error && MEDIA_DEVICE_IN_USE_NAMES.includes(originalError.name);
+}
+/**
+* Failure to acquire local media (camera, microphone, or screen capture)
+* via `getUserMedia`/`getDisplayMedia`.
+*
+* Non-fatal by default: screenshare and additional-device failures never
+* end the call, and main-connection failures degrade to receive-only when
+* possible. The wrapping site sets `fatal` to `true` only when the call
+* cannot continue (receive-only fallback disabled or no receive intent).
+*/
+var MediaAccessError = class extends Error {
+	constructor(operation, media, originalError, fatal = false) {
+		super(`Media access ${isMediaAccessDenial(originalError) ? "denied" : "failed"} for ${operation} (${media})`, { cause: originalError instanceof Error ? originalError : void 0 });
+		this.operation = operation;
+		this.media = media;
+		this.originalError = originalError;
+		this.fatal = fatal;
+		this.name = "MediaAccessError";
+	}
+	/** True when the underlying failure is a permission denial (user or policy). */
+	get denied() {
+		return isMediaAccessDenial(this.originalError);
+	}
+};
+/**
+* Thrown by `startScreenShare()` when the call is already sharing a screen.
+*
+* A call carries at most one screen share. Accepting a second one would
+* overwrite the only reference the SDK holds to the first, leaving it
+* capturing and sending with no way to stop it — so the second request is
+* rejected and the live share is left untouched. Call `stopScreenShare()`
+* first to replace it.
+*/
+var ScreenShareAlreadyActiveError = class extends Error {
+	constructor(screenShareId, options) {
+		super(`A screen share is already active on this call (${screenShareId}). Call stopScreenShare() before starting another one.`, options);
+		this.screenShareId = screenShareId;
+		this.name = "ScreenShareAlreadyActiveError";
 	}
 };
 var DPoPInitError = class extends Error {
@@ -9470,9 +9735,9 @@ var require_loglevel = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		defaultLogger$1 = new Logger();
 		defaultLogger$1.getLogger = function getLogger$1(name) {
 			if (typeof name !== "symbol" && typeof name !== "string" || name === "") throw new TypeError("You must supply a name when creating a logger.");
-			var logger$33 = _loggersByName[name];
-			if (!logger$33) logger$33 = _loggersByName[name] = new Logger(name, defaultLogger$1.methodFactory);
-			return logger$33;
+			var logger$34 = _loggersByName[name];
+			if (!logger$34) logger$34 = _loggersByName[name] = new Logger(name, defaultLogger$1.methodFactory);
+			return logger$34;
 		};
 		var _log = typeof window !== undefinedType ? window.log : void 0;
 		defaultLogger$1.noConflict = function() {
@@ -9508,8 +9773,8 @@ const defaultLoggerLevel = defaultLogger.levels.WARN;
 defaultLogger.setLevel(defaultLoggerLevel);
 let userLogger = null;
 /** Replace the built-in logger with a custom implementation. Pass `null` to restore defaults. */
-const setLogger = (logger$33) => {
-	userLogger = logger$33;
+const setLogger = (logger$34) => {
+	userLogger = logger$34;
 };
 let debugOptions = {};
 /** Configure debug options (e.g., `{ logWsTraffic: true }`). */
@@ -9553,8 +9818,8 @@ const wsTraffic = (options) => {
 	loggerInstance.debug(`${options.type.toUpperCase()}: \n`, msg, "\n");
 };
 const getLogger = () => {
-	const logger$33 = getLoggerInstance();
-	return new Proxy(logger$33, { get(_target, prop, _receiver) {
+	const logger$34 = getLoggerInstance();
+	return new Proxy(logger$34, { get(_target, prop, _receiver) {
 		if (prop === "wsTraffic") return wsTraffic;
 		const instance = getLoggerInstance();
 		const value = Reflect.get(instance, prop);
@@ -9606,7 +9871,7 @@ const asyncRetry = async ({ asyncCallable, maxRetries: retries = DEFAULT_MAX_RET
 
 //#endregion
 //#region src/controllers/HTTPRequestController.ts
-const logger$32 = getLogger();
+const logger$33 = getLogger();
 const GET_PARAMS = {
 	method: "GET",
 	headers: { Accept: "application/json" }
@@ -9670,7 +9935,7 @@ var HTTPRequestController = class HTTPRequestController extends Destroyable {
 			this._responses$.next(response);
 			return response;
 		} catch (error) {
-			logger$32.error("[HTTPRequestController] Request error:", error);
+			logger$33.error("[HTTPRequestController] Request error:", error);
 			this._status$.next("error");
 			const err = error instanceof Error ? error : new Error("HTTP request failed", { cause: error });
 			this._errors$.next(err);
@@ -9697,7 +9962,7 @@ var HTTPRequestController = class HTTPRequestController extends Destroyable {
 		const url = this.buildURL(request.url);
 		const headers = this.buildHeaders(request.headers);
 		const timeout$5 = request.timeout ?? this.requestTimeout;
-		logger$32.debug("[HTTPRequestController] Executing request:", {
+		logger$33.debug("[HTTPRequestController] Executing request:", {
 			method: request.method,
 			url,
 			headers: Object.keys(headers).reduce((acc, key) => {
@@ -9717,7 +9982,7 @@ var HTTPRequestController = class HTTPRequestController extends Destroyable {
 			});
 			clearTimeout(timeoutId);
 			const httpResponse = await this.convertResponse(response);
-			logger$32.debug("[HTTPRequestController] Response received:", {
+			logger$33.debug("[HTTPRequestController] Response received:", {
 				status: response.status,
 				statusText: response.statusText,
 				headers: [...response.headers.entries()],
@@ -9727,7 +9992,7 @@ var HTTPRequestController = class HTTPRequestController extends Destroyable {
 		} catch (error) {
 			clearTimeout(timeoutId);
 			if (error instanceof Error && error.name === "AbortError") throw new RequestTimeoutError(`Request timeout after ${timeout$5}ms`, { cause: error });
-			logger$32.error("[HTTPRequestController] Request failed:", error);
+			logger$33.error("[HTTPRequestController] Request failed:", error);
 			throw error;
 		}
 	}
@@ -9741,8 +10006,8 @@ var HTTPRequestController = class HTTPRequestController extends Destroyable {
 		const credential = this.getCredential();
 		if (credential.token) {
 			headers.Authorization = `Bearer ${credential.token}`;
-			logger$32.debug("[HTTPRequestController] Using Bearer token auth, token length:", credential.token.length);
-		} else logger$32.warn("[HTTPRequestController] No credentials available for authentication");
+			logger$33.debug("[HTTPRequestController] Using Bearer token auth, token length:", credential.token.length);
+		} else logger$33.warn("[HTTPRequestController] No credentials available for authentication");
 		return headers;
 	}
 	/**
@@ -9880,137 +10145,6 @@ var DeviceHistoryManager = class {
 };
 
 //#endregion
-//#region src/core/constants.ts
-const INVITE_VERSION = 1e3;
-const DEFAULT_ICE_CANDIDATE_TIMEOUT_MS = 600;
-const DEFAULT_ICE_GATHERING_TIMEOUT_MS = 6e3;
-const DEFAULT_RECONNECT_CALLS_TIMEOUT_MS = 300 * 1e3;
-const DEFAULT_CONNECTION_TIMEOUT_MS = 1e4;
-const DEFAULT_RECONNECT_DELAY_MIN_MS = 100;
-const DEFAULT_RECONNECT_DELAY_MAX_MS = 3e3;
-const DEFAULT_DEVICE_DEBOUNCE_TIME_MS = 1500;
-const DEFAULT_DEVICE_POLLING_INTERVAL_MS = 0;
-const PREFERENCES_STORAGE_KEY = "sw:preferences";
-/** Scope value that enables automatic token refresh. */
-const SAT_REFRESH_SCOPE = "sat:refresh";
-/** API endpoints for device token operations. */
-const DEVICE_TOKEN_ENDPOINT = "/api/fabric/subscriber/devices/token";
-const DEVICE_REFRESH_ENDPOINT = "/api/fabric/subscriber/devices/refresh";
-/** Default device token TTL in seconds (15 minutes). */
-const DEVICE_TOKEN_DEFAULT_EXPIRE_IN = 900;
-/** Buffer time in milliseconds before expiry to trigger refresh. */
-const DEVICE_TOKEN_REFRESH_BUFFER_MS = 3e4;
-/** Maximum retry attempts for device token refresh on transient failure. */
-const DEVICE_TOKEN_REFRESH_MAX_RETRIES = 3;
-/** Base delay in milliseconds for exponential backoff on refresh retry. */
-const DEVICE_TOKEN_REFRESH_RETRY_BASE_MS = 1e3;
-/** Maximum retry attempts for developer credential refresh on transient failure. */
-const CREDENTIAL_REFRESH_MAX_RETRIES = 5;
-/** Base delay in milliseconds for exponential backoff on credential refresh retry. */
-const CREDENTIAL_REFRESH_RETRY_BASE_MS = 1e3;
-/** Maximum delay in milliseconds for credential refresh backoff. */
-const CREDENTIAL_REFRESH_MAX_DELAY_MS = 3e4;
-/** Buffer in milliseconds before token expiry to trigger refresh. */
-const CREDENTIAL_REFRESH_BUFFER_MS = 5e3;
-/**
-* Maximum time the coordinator will wait for `DeviceTokenManager.activate()`
-* to resolve before treating the activation as failed and falling back to
-* the developer-provided refresh path. Prevents a wedged HTTP layer from
-* leaving the session with no active refresh mechanism.
-*/
-const CREDENTIAL_ACTIVATE_TIMEOUT_MS = 3e4;
-/** JSON-RPC error code for requester validation failure (corrupted auth state). */
-const RPC_ERROR_REQUESTER_VALIDATION_FAILED = -32003;
-/** JSON-RPC error code for invalid params (e.g., missing authentication block). */
-const RPC_ERROR_INVALID_PARAMS = -32602;
-/** JSON-RPC error code for authentication failure (invalid token, missing DPoP, etc.). */
-const RPC_ERROR_AUTHENTICATION_FAILED = -32002;
-/** Default polling interval for RTCPeerConnection.getStats() in milliseconds. */
-const DEFAULT_STATS_POLLING_INTERVAL_MS = 1e3;
-/** Number of initial samples used to build a baseline for spike detection. */
-const DEFAULT_STATS_BASELINE_SAMPLES = 10;
-/** Duration in ms with no inbound audio packets before emitting a critical issue. */
-const DEFAULT_STATS_NO_PACKET_THRESHOLD_MS = 2e3;
-/** Multiplier applied to baseline RTT to detect a warning-level RTT spike. */
-const DEFAULT_STATS_RTT_SPIKE_MULTIPLIER = 3;
-/** Packet loss fraction (0-1) above which a warning is emitted. */
-const DEFAULT_STATS_PACKET_LOSS_THRESHOLD = .05;
-/** Multiplier applied to baseline jitter to detect a jitter spike. */
-const DEFAULT_STATS_JITTER_SPIKE_MULTIPLIER = 4;
-/** Number of seconds of metrics history to retain. */
-const DEFAULT_STATS_HISTORY_SIZE = 30;
-/** Maximum keyframe requests allowed within a single burst window. */
-const DEFAULT_KEYFRAME_MAX_BURST$1 = 3;
-/** Duration of the keyframe burst window in milliseconds. */
-const DEFAULT_KEYFRAME_BURST_WINDOW_MS$1 = 3e3;
-/** Cooldown period in ms after burst limit is reached before allowing more keyframes. */
-const DEFAULT_KEYFRAME_COOLDOWN_MS$1 = 1e4;
-/** Minimum time between re-INVITE attempts in milliseconds. */
-const DEFAULT_REINVITE_DEBOUNCE_TIME_MS = 1e4;
-/** Maximum number of re-INVITE attempts per call. */
-const DEFAULT_REINVITE_MAX_ATTEMPTS = 3;
-/** Timeout for a single re-INVITE attempt in milliseconds. */
-const DEFAULT_REINVITE_TIMEOUT_MS = 5e3;
-/** Debounce window in ms to collapse multiple detection signals into one trigger. */
-const DEFAULT_RECOVERY_DEBOUNCE_TIME_MS = 2e3;
-/** Cooldown period in ms between recovery attempts. */
-const DEFAULT_RECOVERY_COOLDOWN_MS = 1e4;
-/** Grace period in ms before treating ICE 'disconnected' as a failure. */
-const DEFAULT_ICE_DISCONNECTED_GRACE_PERIOD_MS = 3e3;
-/** Timeout for a single ICE restart attempt in milliseconds. */
-const DEFAULT_ICE_RESTART_TIMEOUT_MS$1 = 5e3;
-/** Maximum recovery attempts before emitting 'max_attempts_reached'. */
-const DEFAULT_MAX_RECOVERY_ATTEMPTS = 3;
-/** Upper bound in ms for waiting on iceGatheringState === 'complete' after an ICE restart. */
-const ICE_GATHERING_COMPLETE_TIMEOUT_MS = 1e4;
-/** Upper bound in ms for waiting on RTCPeerConnection.connectionState === 'connected' after a recovery ICE restart. */
-const PEER_CONNECTION_RECOVERY_WAIT_MS = 5e3;
-/** Polling interval in ms while waiting for RTCPeerConnection.connectionState to transition. */
-const PEER_CONNECTION_RECOVERY_POLL_MS = 100;
-/** Polling interval for LocalAudioPipeline.level$ (ms). ~30fps is smooth for meters. */
-const AUDIO_LEVEL_POLL_INTERVAL_MS = 33;
-/** RMS level threshold (0..1) above which the local participant is considered speaking. */
-const VAD_THRESHOLD = .03;
-/** Hold window in ms below the threshold before speaking$ flips back to false. */
-const VAD_HOLD_MS = 250;
-/** Whether to persist device selections to storage by default. */
-const DEFAULT_PERSIST_DEVICE_SELECTION = true;
-/** Whether to auto-apply device changes to active calls by default. */
-const DEFAULT_SYNC_DEVICES_TO_ACTIVE_CALLS = true;
-/** Storage keys for persisted device selections. */
-const DEVICE_STORAGE_KEY_AUDIO_INPUT = "sw:device:audioinput";
-const DEVICE_STORAGE_KEY_AUDIO_OUTPUT = "sw:device:audiooutput";
-const DEVICE_STORAGE_KEY_VIDEO_INPUT = "sw:device:videoinput";
-/** Whether to auto-mute video when the tab becomes hidden. */
-const DEFAULT_AUTO_MUTE_VIDEO_ON_HIDDEN = false;
-/** Whether to re-enumerate devices when the page becomes visible. */
-const DEFAULT_REFRESH_DEVICES_ON_VISIBLE = true;
-/** Whether to check peer connection health when the page becomes visible. */
-const DEFAULT_CHECK_CONNECTION_ON_VISIBLE = true;
-/** Whether automatic video degradation on low bandwidth is enabled. */
-const DEFAULT_ENABLE_AUTO_DEGRADATION = true;
-/** Bitrate in kbps below which video is automatically disabled. */
-const DEFAULT_DEGRADATION_BITRATE_THRESHOLD_KBPS = 150;
-/** Bitrate in kbps above which video is automatically re-enabled (hysteresis). */
-const DEFAULT_DEGRADATION_RECOVERY_THRESHOLD_KBPS = 300;
-/** Whether relay-only escalation is enabled as a last-resort recovery tier. */
-const DEFAULT_ENABLE_RELAY_FALLBACK = true;
-/** Whether to listen for browser online/offline/connection events. */
-const DEFAULT_ENABLE_NETWORK_CHANGE_DETECTION = true;
-/** Whether to intercept server-sent media-timeout hangups and attempt recovery. */
-const DEFAULT_ENABLE_SERVER_HANGUP_INTERCEPTION = true;
-/** Default video track constraints applied when video is enabled without explicit constraints. */
-const DEFAULT_VIDEO_CONSTRAINTS = {
-	width: { ideal: 1280 },
-	height: { ideal: 720 },
-	aspectRatio: 16 / 9
-};
-/** Whether stereo Opus is enabled by default. */
-const DEFAULT_STEREO_AUDIO = false;
-/** Max average bitrate for stereo Opus in bits per second. */
-const DEFAULT_STEREO_MAX_AVERAGE_BITRATE = 51e4;
-
-//#endregion
 //#region src/utils/time.ts
 function fromSecToMs(seconds) {
 	return seconds * 1e3;
@@ -10021,7 +10155,7 @@ function fromMsToSec(milliseconds) {
 
 //#endregion
 //#region src/containers/PreferencesContainer.ts
-const logger$31 = getLogger();
+const logger$32 = getLogger();
 var PreferencesContainer = class PreferencesContainer {
 	static get instance() {
 		this._instance ??= new PreferencesContainer();
@@ -10683,7 +10817,7 @@ var ClientPreferences = class {
 		if (!this._storage) return;
 		const data = collectStoredPreferences();
 		this._storage.setItem(PREFERENCES_STORAGE_KEY, data, "local").catch((error) => {
-			logger$31.error(`[ClientPreferences] Failed to save preferences: ${String(error)}`);
+			logger$32.error(`[ClientPreferences] Failed to save preferences: ${String(error)}`);
 		});
 	}
 	/** Loads preferences from storage and applies them to the container. */
@@ -10692,7 +10826,7 @@ var ClientPreferences = class {
 		this._storage.getItem(PREFERENCES_STORAGE_KEY, "local").then((stored) => {
 			if (stored) applyStoredPreferences(stored);
 		}).catch((error) => {
-			logger$31.error(`[ClientPreferences] Failed to load preferences: ${String(error)}`);
+			logger$32.error(`[ClientPreferences] Failed to load preferences: ${String(error)}`);
 		});
 	}
 };
@@ -10714,7 +10848,7 @@ function toError(value) {
 //#endregion
 //#region src/controllers/NavigatorDeviceController.ts
 var import_cjs$29 = require_cjs();
-const logger$30 = getLogger();
+const logger$31 = getLogger();
 /** Maps a device kind to its storage key. */
 const DEVICE_STORAGE_KEYS = {
 	audioinput: DEVICE_STORAGE_KEY_AUDIO_INPUT,
@@ -10736,7 +10870,7 @@ var NavigatorDeviceController = class extends Destroyable {
 		super();
 		this.webRTCApiProvider = webRTCApiProvider;
 		this.deviceChangeHandler = () => {
-			logger$30.debug("[DeviceController] Device change detected");
+			logger$31.debug("[DeviceController] Device change detected");
 			this.enumerateDevices();
 		};
 		this._devicesState$ = this.createBehaviorSubject(initialDevicesState);
@@ -10801,13 +10935,13 @@ var NavigatorDeviceController = class extends Destroyable {
 		return this.cachedObservable("videoInputDevices$", () => this._devicesState$.pipe((0, import_cjs$29.map)((state) => state.videoinput), (0, import_cjs$29.distinctUntilChanged)(), (0, import_cjs$29.takeUntil)(this.destroyed$)));
 	}
 	get selectedAudioInputDevice$() {
-		return this.cachedObservable("selectedAudioInputDevice$", () => this._selectedDevicesState$.asObservable().pipe((0, import_cjs$29.map)((state) => state.audioinput), (0, import_cjs$29.distinctUntilChanged)(), (0, import_cjs$29.takeUntil)(this.destroyed$), (0, import_cjs$29.tap)((info) => logger$30.debug("[DeviceController] Selected audio input device changed:", info))));
+		return this.cachedObservable("selectedAudioInputDevice$", () => this._selectedDevicesState$.asObservable().pipe((0, import_cjs$29.map)((state) => state.audioinput), (0, import_cjs$29.distinctUntilChanged)(), (0, import_cjs$29.takeUntil)(this.destroyed$), (0, import_cjs$29.tap)((info) => logger$31.debug("[DeviceController] Selected audio input device changed:", info))));
 	}
 	get selectedAudioOutputDevice$() {
-		return this.cachedObservable("selectedAudioOutputDevice$", () => this._selectedDevicesState$.asObservable().pipe((0, import_cjs$29.map)((state) => state.audiooutput), (0, import_cjs$29.distinctUntilChanged)(), (0, import_cjs$29.takeUntil)(this.destroyed$), (0, import_cjs$29.tap)((info) => logger$30.debug("[DeviceController] Selected audio output device changed:", info))));
+		return this.cachedObservable("selectedAudioOutputDevice$", () => this._selectedDevicesState$.asObservable().pipe((0, import_cjs$29.map)((state) => state.audiooutput), (0, import_cjs$29.distinctUntilChanged)(), (0, import_cjs$29.takeUntil)(this.destroyed$), (0, import_cjs$29.tap)((info) => logger$31.debug("[DeviceController] Selected audio output device changed:", info))));
 	}
 	get selectedVideoInputDevice$() {
-		return this.cachedObservable("selectedVideoInputDevice$", () => this._selectedDevicesState$.asObservable().pipe((0, import_cjs$29.map)((state) => state.videoinput), (0, import_cjs$29.distinctUntilChanged)(), (0, import_cjs$29.takeUntil)(this.destroyed$), (0, import_cjs$29.tap)((info) => logger$30.debug("[DeviceController] Selected video input device changed:", info))));
+		return this.cachedObservable("selectedVideoInputDevice$", () => this._selectedDevicesState$.asObservable().pipe((0, import_cjs$29.map)((state) => state.videoinput), (0, import_cjs$29.distinctUntilChanged)(), (0, import_cjs$29.takeUntil)(this.destroyed$), (0, import_cjs$29.tap)((info) => logger$31.debug("[DeviceController] Selected video input device changed:", info))));
 	}
 	get selectedAudioInputDevice() {
 		if (this._audioInputDisabled$.value) return null;
@@ -10882,7 +11016,7 @@ var NavigatorDeviceController = class extends Destroyable {
 		if (device) this.persistDeviceSelection("audioinput", device);
 	}
 	selectVideoInputDevice(device) {
-		logger$30.debug("[DeviceController] Setting selected video input device:", device);
+		logger$31.debug("[DeviceController] Setting selected video input device:", device);
 		if (this._videoInputDisabled$.value && device) this._videoInputDisabled$.next(false);
 		const previous = this._selectedDevicesState$.value.videoinput;
 		if (previous && previous.deviceId !== device?.deviceId) this._deviceHistory.push("videoinput", previous);
@@ -10939,7 +11073,7 @@ var NavigatorDeviceController = class extends Destroyable {
 			}
 			const fromHistory = this._deviceHistory.findInHistory(kind, devices);
 			if (fromHistory) {
-				logger$30.debug(`[DeviceController] Device disappeared, falling back to history: ${fromHistory.label}`);
+				logger$31.debug(`[DeviceController] Device disappeared, falling back to history: ${fromHistory.label}`);
 				this.emitDeviceRecovered(kind, selected, fromHistory, "device_disconnected");
 				return fromHistory;
 			}
@@ -10992,7 +11126,7 @@ var NavigatorDeviceController = class extends Destroyable {
 		try {
 			await this._storageManager.setItem(DEVICE_STORAGE_KEYS[kind], stored, "local");
 		} catch (error) {
-			logger$30.error(`[DeviceController] Failed to persist device selection for ${kind}:`, error);
+			logger$31.error(`[DeviceController] Failed to persist device selection for ${kind}:`, error);
 		}
 	}
 	async loadPersistedDevices() {
@@ -11008,7 +11142,7 @@ var NavigatorDeviceController = class extends Destroyable {
 				[kind]: stored
 			};
 		} catch (error) {
-			logger$30.error(`[DeviceController] Failed to load persisted device for ${kind}:`, error);
+			logger$31.error(`[DeviceController] Failed to load persisted device for ${kind}:`, error);
 		}
 	}
 	/** Clears device history, persisted selections, and re-enumerates devices. */
@@ -11026,7 +11160,7 @@ var NavigatorDeviceController = class extends Destroyable {
 		this.disableDeviceMonitoring();
 		this.webRTCApiProvider.mediaDevices.addEventListener("devicechange", this.deviceChangeHandler);
 		if (PreferencesContainer.instance.devicePollingInterval > 0) this._devicesPoolingSubscription = (0, import_cjs$29.interval)(PreferencesContainer.instance.devicePollingInterval).subscribe(() => {
-			logger$30.debug("[DeviceController] Polling devices due to interval");
+			logger$31.debug("[DeviceController] Polling devices due to interval");
 			this.enumerateDevices();
 		});
 		this.enumerateDevices();
@@ -11052,13 +11186,13 @@ var NavigatorDeviceController = class extends Destroyable {
 				videoinput: []
 			});
 			this._devicesState$.next(devicesByKind);
-			logger$30.debug("[DeviceController] Devices enumerated:", {
+			logger$31.debug("[DeviceController] Devices enumerated:", {
 				audioInputs: devicesByKind.audioinput.length,
 				audioOutputs: devicesByKind.audiooutput.length,
 				videoInputs: devicesByKind.videoinput.length
 			});
 		} catch (error) {
-			logger$30.error("[DeviceController] Failed to enumerate devices:", error);
+			logger$31.error("[DeviceController] Failed to enumerate devices:", error);
 			this._errors$.next(toError(error));
 		}
 	}
@@ -11074,7 +11208,7 @@ var NavigatorDeviceController = class extends Destroyable {
 			stream.getTracks().forEach((t) => t.stop());
 			return capabilities;
 		} catch (error) {
-			logger$30.error("[DeviceController] Failed to get device capabilities:", error);
+			logger$31.error("[DeviceController] Failed to get device capabilities:", error);
 			this._errors$.next(toError(error));
 			throw error;
 		}
@@ -11325,7 +11459,7 @@ var DependencyContainer = class {
 
 //#endregion
 //#region src/controllers/CryptoController.ts
-const logger$29 = getLogger();
+const logger$30 = getLogger();
 const DPOP_DB_NAME = "sw-dpop";
 const DPOP_DB_VERSION = 1;
 const DPOP_STORE_NAME = "keys";
@@ -11384,7 +11518,7 @@ async function loadKeyPairFromDB() {
 			tx.oncomplete = () => db.close();
 		});
 	} catch (error) {
-		logger$29.warn("[DPoP] Failed to load key pair from IndexedDB:", error);
+		logger$30.warn("[DPoP] Failed to load key pair from IndexedDB:", error);
 		return null;
 	}
 }
@@ -11404,7 +11538,7 @@ async function saveKeyPairToDB(keyPair) {
 			};
 		});
 	} catch (error) {
-		logger$29.warn("[DPoP] Failed to save key pair to IndexedDB:", error);
+		logger$30.warn("[DPoP] Failed to save key pair to IndexedDB:", error);
 	}
 }
 async function deleteKeyPairFromDB() {
@@ -11423,7 +11557,7 @@ async function deleteKeyPairFromDB() {
 			};
 		});
 	} catch (error) {
-		logger$29.warn("[DPoP] Failed to delete key pair from IndexedDB:", error);
+		logger$30.warn("[DPoP] Failed to delete key pair from IndexedDB:", error);
 	}
 }
 /**
@@ -11483,13 +11617,13 @@ var CryptoController = class {
 			this._publicJwk = await crypto.subtle.exportKey("jwk", stored.publicKey);
 			this._fingerprint = await computeJwkThumbprint(this._publicJwk);
 			this._initialized = true;
-			logger$29.debug("[DPoP] Key pair restored from IndexedDB, fingerprint:", this._fingerprint);
+			logger$30.debug("[DPoP] Key pair restored from IndexedDB, fingerprint:", this._fingerprint);
 			return this._fingerprint;
 		} catch (error) {
-			logger$29.warn("[DPoP] Stored key pair unusable, generating new one:", error);
+			logger$30.warn("[DPoP] Stored key pair unusable, generating new one:", error);
 			await deleteKeyPairFromDB();
 		}
-		logger$29.debug("[DPoP] Generating RSA key pair");
+		logger$30.debug("[DPoP] Generating RSA key pair");
 		this._keyPair = await crypto.subtle.generateKey({
 			name: "RSASSA-PKCS1-v1_5",
 			modulusLength: 2048,
@@ -11504,7 +11638,7 @@ var CryptoController = class {
 		this._fingerprint = await computeJwkThumbprint(this._publicJwk);
 		this._initialized = true;
 		await saveKeyPairToDB(this._keyPair);
-		logger$29.debug("[DPoP] Key pair generated and persisted, fingerprint:", this._fingerprint);
+		logger$30.debug("[DPoP] Key pair generated and persisted, fingerprint:", this._fingerprint);
 		return this._fingerprint;
 	}
 	/**
@@ -11570,7 +11704,7 @@ var CryptoController = class {
 		this._fingerprint = null;
 		this._initialized = false;
 		deleteKeyPairFromDB();
-		logger$29.debug("[DPoP] Controller destroyed");
+		logger$30.debug("[DPoP] Controller destroyed");
 	}
 	get publicJwk() {
 		if (!this._publicJwk) throw new DPoPInitError("CryptoController not initialized. Call init() first.");
@@ -11594,7 +11728,7 @@ var CryptoController = class {
 //#endregion
 //#region src/controllers/NetworkMonitor.ts
 var import_cjs$28 = require_cjs();
-const logger$28 = getLogger();
+const logger$29 = getLogger();
 /**
 * Safely check whether we are running in a browser environment
 * with `window` and the relevant event targets.
@@ -11651,7 +11785,7 @@ var NetworkMonitor = class extends Destroyable {
 	}
 	attachListeners() {
 		if (!hasBrowserNetworkEvents()) {
-			logger$28.debug("NetworkMonitor: no browser environment detected, skipping event listeners");
+			logger$29.debug("NetworkMonitor: no browser environment detected, skipping event listeners");
 			return;
 		}
 		window.addEventListener("online", this._onOnline);
@@ -11659,7 +11793,7 @@ var NetworkMonitor = class extends Destroyable {
 		const connection = getNetworkConnection();
 		if (connection) connection.addEventListener("change", this._onConnectionChange);
 		this._listenersAttached = true;
-		logger$28.debug("NetworkMonitor: event listeners attached");
+		logger$29.debug("NetworkMonitor: event listeners attached");
 	}
 	removeListeners() {
 		if (!this._listenersAttached) return;
@@ -11670,10 +11804,10 @@ var NetworkMonitor = class extends Destroyable {
 			if (connection) connection.removeEventListener("change", this._onConnectionChange);
 		}
 		this._listenersAttached = false;
-		logger$28.debug("NetworkMonitor: event listeners removed");
+		logger$29.debug("NetworkMonitor: event listeners removed");
 	}
 	handleOnline() {
-		logger$28.info("NetworkMonitor: browser went online");
+		logger$29.info("NetworkMonitor: browser went online");
 		this._isOnline$.next(true);
 		this._networkChange$.next({
 			type: "online",
@@ -11682,7 +11816,7 @@ var NetworkMonitor = class extends Destroyable {
 		});
 	}
 	handleOffline() {
-		logger$28.info("NetworkMonitor: browser went offline");
+		logger$29.info("NetworkMonitor: browser went offline");
 		this._isOnline$.next(false);
 		this._networkChange$.next({
 			type: "offline",
@@ -11691,7 +11825,7 @@ var NetworkMonitor = class extends Destroyable {
 	}
 	handleConnectionChange() {
 		const networkType = getNetworkType();
-		logger$28.info(`NetworkMonitor: connection changed — effectiveType=${networkType ?? "unknown"}`);
+		logger$29.info(`NetworkMonitor: connection changed — effectiveType=${networkType ?? "unknown"}`);
 		this._networkChange$.next({
 			type: "connection_change",
 			timestamp: Date.now(),
@@ -11807,7 +11941,7 @@ function getNavigatorMediaDevices() {
 //#endregion
 //#region src/controllers/PreflightRunner.ts
 var import_cjs$27 = require_cjs();
-const logger$27 = getLogger();
+const logger$28 = getLogger();
 const DEFAULT_MEDIA_TEST_DURATION_S = 10;
 const ICE_GATHERING_TIMEOUT_MS = 1e4;
 const SIGNALING_RTT_TIMEOUT_MS = 5e3;
@@ -11856,7 +11990,7 @@ var PreflightRunner = class extends Destroyable {
 			if (!this._options.skipMediaTest) try {
 				bandwidth = await this.testMediaBandwidth(destination);
 			} catch (error) {
-				logger$27.warn("[PreflightRunner] Media bandwidth test failed:", error);
+				logger$28.warn("[PreflightRunner] Media bandwidth test failed:", error);
 				warnings.push("Media bandwidth test failed");
 			}
 			return {
@@ -11868,7 +12002,7 @@ var PreflightRunner = class extends Destroyable {
 				warnings
 			};
 		} catch (error) {
-			logger$27.error("[PreflightRunner] Preflight test failed:", error);
+			logger$28.error("[PreflightRunner] Preflight test failed:", error);
 			throw new PreflightError("preflight", error instanceof Error ? error : new Error(String(error)));
 		} finally {
 			this.destroy();
@@ -11899,7 +12033,7 @@ var PreflightRunner = class extends Destroyable {
 				if (track.kind === "video" && track.readyState === "live") videoWorking = true;
 			}
 		} catch (error) {
-			logger$27.warn("[PreflightRunner] Device test failed:", error);
+			logger$28.warn("[PreflightRunner] Device test failed:", error);
 		} finally {
 			if (audioStream) audioStream.getTracks().forEach((t) => t.stop());
 		}
@@ -11957,7 +12091,7 @@ var PreflightRunner = class extends Destroyable {
 				rttMs
 			};
 		} catch (error) {
-			logger$27.warn("[PreflightRunner] ICE connectivity test failed:", error);
+			logger$28.warn("[PreflightRunner] ICE connectivity test failed:", error);
 			return {
 				type: "failed",
 				turnReachable: false,
@@ -12005,7 +12139,7 @@ var PreflightRunner = class extends Destroyable {
 //#endregion
 //#region src/controllers/VisibilityController.ts
 var import_cjs$26 = require_cjs();
-const logger$26 = getLogger();
+const logger$27 = getLogger();
 /**
 * Checks whether the document visibility API is available.
 */
@@ -12042,8 +12176,8 @@ var VisibilityController = class extends Destroyable {
 		this._boundHandler = this._handleVisibilityChange.bind(this);
 		if (this._hasVisibilityApi) {
 			document.addEventListener("visibilitychange", this._boundHandler);
-			logger$26.debug("VisibilityController: listening for visibilitychange events");
-		} else logger$26.debug("VisibilityController: document visibility API not available, defaulting to visible");
+			logger$27.debug("VisibilityController: listening for visibilitychange events");
+		} else logger$27.debug("VisibilityController: document visibility API not available, defaulting to visible");
 	}
 	/**
 	* Observable of the current visibility state.
@@ -12068,7 +12202,7 @@ var VisibilityController = class extends Destroyable {
 	destroy() {
 		if (this._hasVisibilityApi) {
 			document.removeEventListener("visibilitychange", this._boundHandler);
-			logger$26.debug("VisibilityController: removed visibilitychange listener");
+			logger$27.debug("VisibilityController: removed visibilitychange listener");
 		}
 		super.destroy();
 	}
@@ -12086,7 +12220,7 @@ var VisibilityController = class extends Destroyable {
 			timestamp: Date.now()
 		};
 		this._visibilityChange$.next(changeEvent);
-		logger$26.debug("VisibilityController: visibility changed", {
+		logger$27.debug("VisibilityController: visibility changed", {
 			from: previousState,
 			to: newState
 		});
@@ -12237,6 +12371,12 @@ const RPCReauthenticate = (params) => {
 
 //#endregion
 //#region src/core/RPCMessages/RPCPing.ts
+const RPCPing = () => {
+	return buildRPCRequest({
+		method: "signalwire.ping",
+		params: { timestamp: Date.now() / 1e3 }
+	});
+};
 const RPCPingResponse = (id, timestamp$1) => {
 	return makeRPCResponse({
 		id,
@@ -12326,14 +12466,56 @@ const RPCEventAckResponse = (id) => makeRPCResponse({
 });
 
 //#endregion
+//#region src/utils/authRecovery.ts
+/**
+* Walk an error's `error`/`cause` chain looking for a {@link JSONRPCError}.
+* Errors thrown by call creation are wrapped (e.g. `CallCreateError`), so the
+* underlying signaling error is nested. Bounded by a visited set to guard
+* against cyclic causes.
+*/
+function findJSONRPCError(error) {
+	const seen = /* @__PURE__ */ new Set();
+	let current = error;
+	while (current instanceof Error && !seen.has(current)) {
+		seen.add(current);
+		if (current instanceof JSONRPCError) return current;
+		current = current.error ?? current.cause;
+	}
+}
+/**
+* Whether an error is a session-recoverable authentication failure
+* (`-32002` authentication failed or `-32003` requester validation failed)
+* that a credential re-mint + retry can heal.
+*/
+function isRecoverableAuthError(error) {
+	const rpcError = findJSONRPCError(error);
+	return rpcError !== void 0 && (rpcError.code === RPC_ERROR_REQUESTER_VALIDATION_FAILED || rpcError.code === RPC_ERROR_AUTHENTICATION_FAILED);
+}
+/**
+* Whether an error is specifically a requester-validation rejection
+* (`-32003`) — the server refusing the session's credential.
+*
+* Narrower than {@link isRecoverableAuthError} on purpose. `-32002` is
+* overloaded server-side: a rejected reattach arrives as `-32002` with
+* `cause: INVALID_MSG_UNSPECIFIED` and message `CALL ERROR`, which is a
+* call-level rejection and says nothing about the credential. Use this where
+* the decision must not be fooled by that, such as deciding whether retrying
+* an operation could possibly succeed.
+*/
+function isRequesterValidationError(error) {
+	return findJSONRPCError(error)?.code === RPC_ERROR_REQUESTER_VALIDATION_FAILED;
+}
+
+//#endregion
 //#region src/managers/AttachManager.ts
-const logger$25 = getLogger();
+const logger$26 = getLogger();
 var AttachManager = class {
-	constructor(storage, deviceController, reconnectCallsTimeout, attachKey) {
+	constructor(storage, deviceController, reconnectCallsTimeout, attachKey, credentialRecovered) {
 		this.storage = storage;
 		this.deviceController = deviceController;
 		this.reconnectCallsTimeout = reconnectCallsTimeout;
 		this.attachKey = attachKey;
+		this.credentialRecovered = credentialRecovered;
 		this.writeQueue = Promise.resolve();
 	}
 	async detachAll() {
@@ -12348,7 +12530,7 @@ var AttachManager = class {
 		try {
 			return await this.storage.getItem(this.attachKey) ?? {};
 		} catch (error) {
-			logger$25.warn("[AttachManager] Failed to retrieve attached calls from storage", error);
+			logger$26.warn("[AttachManager] Failed to retrieve attached calls from storage", error);
 			return {};
 		}
 	}
@@ -12356,7 +12538,7 @@ var AttachManager = class {
 		try {
 			await this.storage.setItem(this.attachKey, attached);
 		} catch (error) {
-			logger$25.warn("[AttachManager] Failed to write attached calls to storage", error);
+			logger$26.warn("[AttachManager] Failed to write attached calls to storage", error);
 		}
 	}
 	/**
@@ -12375,11 +12557,39 @@ var AttachManager = class {
 	}
 	async attach(call) {
 		if (!call.to) {
-			logger$25.warn("[AttachManager] Skip attach for calls with no destination");
+			logger$26.warn("[AttachManager] Skip attach for calls with no destination");
 			return;
 		}
+		const attachment = this.buildAttachment(call, call.to);
+		await this.mutate((attached) => ({
+			...attached,
+			[call.id]: attachment
+		}));
+	}
+	/**
+	* Keep an already-stored call's reference alive and current — the periodic
+	* refresh the `verto.ping` keepalive drives.
+	*
+	* Only ever updates: a call with no record is one nothing wants reattached,
+	* and re-creating it here would undo a `detach`. That matters because a ping
+	* can land in the window between `bye()` detaching and the call being torn
+	* down, and a record revived there survives the hangup — so the next page
+	* load dials a call nobody is on. The existence check and the write share
+	* one {@link mutate} turn, so a concurrent detach cannot slip between them.
+	*/
+	async refresh(call) {
+		if (!call.to) return;
 		const destination = call.to;
-		const attachment = {
+		await this.mutate((attached) => {
+			if (!Object.hasOwn(attached, call.id)) return attached;
+			return {
+				...attached,
+				[call.id]: this.buildAttachment(call, destination)
+			};
+		});
+	}
+	buildAttachment(call, destination) {
+		return {
 			nodeId: call.nodeId,
 			destination,
 			mediaDirections: call.mediaDirections,
@@ -12387,10 +12597,6 @@ var AttachManager = class {
 			videoInputDevice: call.mediaDirections.video !== "inactive" ? this.deviceController.selectedVideoInputDevice : null,
 			attachedAt: Date.now()
 		};
-		await this.mutate((attached) => ({
-			...attached,
-			[call.id]: attachment
-		}));
 	}
 	async detach(call) {
 		await this.mutate((attached) => {
@@ -12413,8 +12619,14 @@ var AttachManager = class {
 	* rejecting. Once that fix is deployed, this will work for both
 	* page reloads and WebSocket reconnects.
 	*
-	* Failed reattach attempts are handled gracefully — the stale call
-	* reference is cleaned up from storage.
+	* A failed reattach does NOT generally cost the stored reference. It is
+	* discarded only when the server denied the reattach on a session whose
+	* credential it had already accepted — a verified reauthentication followed
+	* by a refusal is the server saying the call is gone, and that is the one
+	* refusal worth acting on. Until then the credential may be what is being
+	* refused, and the record is the only way a later reload can try again;
+	* keeping it costs nothing, since `detachExpired` reaps it once it is older
+	* than `reconnectCallsTimeout`.
 	*/
 	async reattachCalls() {
 		const attached = await this.readAttached();
@@ -12423,25 +12635,31 @@ var AttachManager = class {
 			const { destination } = attachment;
 			const options = this.buildCallOptions(attachment);
 			let succeeded = false;
+			let refusedOnCredentials = false;
 			for (let attempt = 1; attempt <= 3; attempt++) try {
 				await this.session.createOutboundCall(destination, {
 					callId,
 					...options
 				});
-				logger$25.info(`[AttachManager] Reattached call ${callId} (attempt ${attempt})`);
+				logger$26.info(`[AttachManager] Reattached call ${callId} (attempt ${attempt})`);
 				succeeded = true;
 				break;
 			} catch (error) {
-				logger$25.warn(`[AttachManager] Reattach attempt ${attempt}/3 failed for call ${callId}:`, error);
+				logger$26.warn(`[AttachManager] Reattach attempt ${attempt}/3 failed for call ${callId}:`, error);
+				if (isRequesterValidationError(error)) {
+					refusedOnCredentials = true;
+					logger$26.warn(`[AttachManager] Reattach of ${callId} was refused on credentials; not retrying.`);
+					break;
+				}
 				if (attempt < 3) await new Promise((r) => setTimeout(r, (attempt + 1) * 1e3));
 			}
-			if (!succeeded) {
-				logger$25.warn(`[AttachManager] Reattach failed after 3 attempts for call ${callId}, removing reference`);
+			if (!succeeded) if (this.credentialRecovered() && !refusedOnCredentials) {
+				logger$26.warn(`[AttachManager] Reattach of ${callId} was denied after a verified reauthentication, removing reference`);
 				await this.detach({
 					id: callId,
 					mediaDirections: attachment.mediaDirections
 				});
-			}
+			} else logger$26.warn(`[AttachManager] Reattach failed for call ${callId}; keeping the reference (credential refused or never proven good)`);
 		}
 	}
 	/**
@@ -13373,7 +13591,9 @@ const DEFAULT_MEMBER_CAPABILITIES = {
 	position: false,
 	meta: false,
 	remove: false,
-	audioFlags: false
+	audioFlags: false,
+	denoise: false,
+	lowbitrate: false
 };
 /**
 * Default call capabilities with no permissions
@@ -13446,7 +13666,9 @@ function computeMemberCapabilities(flags, memberType) {
 		position: hasBooleanCapability(flags, memberType, null, "position"),
 		meta: hasBooleanCapability(flags, memberType, null, "meta"),
 		remove: hasBooleanCapability(flags, memberType, null, "remove"),
-		audioFlags: hasBooleanCapability(flags, memberType, null, "audioflags")
+		audioFlags: hasBooleanCapability(flags, memberType, null, "audioflags"),
+		denoise: hasBooleanCapability(flags, memberType, null, "denoise"),
+		lowbitrate: hasBooleanCapability(flags, memberType, null, "lowbitrate")
 	};
 }
 /**
@@ -13603,7 +13825,7 @@ function toggleHandraiseMethod(is) {
 
 //#endregion
 //#region src/core/entities/Participant.ts
-const logger$24 = getLogger();
+const logger$25 = getLogger();
 const initialState = {};
 /**
 * Represents a participant in a call.
@@ -13613,9 +13835,9 @@ const initialState = {};
 * the local participant with additional device control.
 */
 var Participant = class extends Destroyable {
-	constructor(id, executeMethod, deviceController) {
+	constructor(id, callExecuteMethod, deviceController) {
 		super();
-		this.executeMethod = executeMethod;
+		this.callExecuteMethod = callExecuteMethod;
 		this.deviceController = deviceController;
 		this._state$ = this.createBehaviorSubject(initialState);
 		this.id = id;
@@ -13829,26 +14051,63 @@ var Participant = class extends Destroyable {
 	get nodeId() {
 		return this._state$.value.node_id;
 	}
+	/** Call ID for this participant's leg, or `undefined` if not available. */
+	get callId() {
+		return this._state$.value.call_id;
+	}
 	/** @internal */
 	get value() {
 		return this._state$.value;
 	}
+	/**
+	* Target triple for member RPCs, built from the participant's own state.
+	* The backend locates the member's session by the target `call_id`/`node_id`,
+	* so this must always be the participant's own call context — never the
+	* local call's id (issue #19400).
+	*
+	* Reading it doubles as a readiness probe: it throws until the first full
+	* member event (`member.joined`/`member.updated` or the `call.joined`
+	* roster) arrives, and never regresses afterwards.
+	*
+	* @throws {ParticipantNotReadyError} If the member state has not been
+	* received yet (e.g. a participant first seen via `member.talking`) — an
+	* empty call context can never address the member, so fail fast instead of
+	* sending a doomed RPC.
+	*/
+	get target() {
+		const { call_id, node_id } = this._state$.value;
+		if (!call_id || !node_id) throw new ParticipantNotReadyError(this.id);
+		return {
+			member_id: this.id,
+			call_id,
+			node_id
+		};
+	}
+	/**
+	* Executes a member RPC against this participant, injecting its own
+	* {@link target} as the target.
+	*
+	* @throws {ParticipantNotReadyError} Via {@link target}, when the
+	* member state has not been received yet.
+	*/
+	async executeMethod(method, args) {
+		return this.callExecuteMethod(this.target, method, args);
+	}
 	/** Toggles the deafened state (mutes/unmutes incoming audio). */
 	async toggleDeaf() {
-		const method = toggleDeafMethod(this.deaf);
-		await this.executeMethod(this.id, method, {});
+		await this.executeMethod(toggleDeafMethod(this.deaf), {});
 	}
 	/** Toggles the hand-raised state. */
 	async toggleHandraise() {
-		await this.executeMethod(this.id, toggleHandraiseMethod(this.handraised), {});
+		await this.executeMethod(toggleHandraiseMethod(this.handraised), {});
 	}
 	/** Mutes the participant's audio. */
 	async mute() {
-		await this.executeMethod(this.id, "call.mute", { channels: ["audio"] });
+		await this.executeMethod("call.mute", { channels: ["audio"] });
 	}
 	/** Unmutes the participant's audio. */
 	async unmute() {
-		await this.executeMethod(this.id, "call.unmute", { channels: ["audio"] });
+		await this.executeMethod("call.unmute", { channels: ["audio"] });
 	}
 	/** Toggles the participant's audio mute state. */
 	async toggleMute() {
@@ -13856,11 +14115,11 @@ var Participant = class extends Destroyable {
 	}
 	/** Mutes the participant's video. */
 	async muteVideo() {
-		await this.executeMethod(this.id, "call.mute", { channels: ["video"] });
+		await this.executeMethod("call.mute", { channels: ["video"] });
 	}
 	/** Unmutes the participant's video. */
 	async unmuteVideo() {
-		await this.executeMethod(this.id, "call.unmute", { channels: ["video"] });
+		await this.executeMethod("call.unmute", { channels: ["video"] });
 	}
 	/** Toggles the participant's video mute state. */
 	async toggleMuteVideo() {
@@ -13868,7 +14127,7 @@ var Participant = class extends Destroyable {
 	}
 	/** Toggles echo cancellation on the audio input. */
 	async toggleEchoCancellation() {
-		await this.executeMethod(this.id, "call.audioflags.set", {
+		await this.executeMethod("call.audioflags.set", {
 			echo_cancellation: !this.echoCancellation,
 			auto_gain: this.autoGain,
 			noise_suppression: this.noiseSuppression
@@ -13876,7 +14135,7 @@ var Participant = class extends Destroyable {
 	}
 	/** Toggles automatic gain control on the audio input. */
 	async toggleAudioInputAutoGain() {
-		await this.executeMethod(this.id, "call.audioflags.set", {
+		await this.executeMethod("call.audioflags.set", {
 			echo_cancellation: this.echoCancellation,
 			auto_gain: !this.autoGain,
 			noise_suppression: this.noiseSuppression
@@ -13884,14 +14143,15 @@ var Participant = class extends Destroyable {
 	}
 	/** Toggles noise suppression on the audio input. */
 	async toggleNoiseSuppression() {
-		await this.executeMethod(this.id, "call.audioflags.set", {
+		await this.executeMethod("call.audioflags.set", {
 			echo_cancellation: this.echoCancellation,
 			auto_gain: this.autoGain,
 			noise_suppression: !this.noiseSuppression
 		});
 	}
+	/** Toggles low-bitrate mode for this participant's media. */
 	async toggleLowbitrate() {
-		throw new UnimplementedError();
+		await this.executeMethod("call.lowbitrate.set", { lowbitrate: !this.lowbitrate });
 	}
 	/**
 	* Adjusts the **conference-only** microphone energy gate / sensitivity level
@@ -13907,7 +14167,7 @@ var Participant = class extends Destroyable {
 	*   (integer, larger values are more sensitive).
 	*/
 	async setAudioInputSensitivity(value) {
-		await this.executeMethod(this.id, "call.microphone.sensitivity.set", { sensitivity: value });
+		await this.executeMethod("call.microphone.sensitivity.set", { sensitivity: value });
 	}
 	/**
 	* Sets the **server-side** microphone volume on this participant's bridged
@@ -13920,7 +14180,7 @@ var Participant = class extends Destroyable {
 	* @param value - Volume level (0-100).
 	*/
 	async setAudioInputVolume(value) {
-		await this.executeMethod(this.id, "call.microphone.volume.set", { volume: value });
+		await this.executeMethod("call.microphone.volume.set", { volume: value });
 	}
 	/**
 	* Sets the **server-side** speaker volume on this participant's bridged call
@@ -13934,28 +14194,31 @@ var Participant = class extends Destroyable {
 	* @param value - Volume level (0-100).
 	*/
 	async setAudioOutputVolume(value) {
-		await this.executeMethod(this.id, "call.speaker.volume.set", { volume: value });
+		await this.executeMethod("call.speaker.volume.set", { volume: value });
 	}
 	/**
 	* Sets the participant's position in the video layout.
+	*
+	* Requires the `member.position` capability. The gateway requires a
+	* `targets` array of `{ target, position }` entries (issue #19400). A
+	* resolved promise does not guarantee a visible change: the backend silently
+	* returns `200` (no-op) for non-conference targets.
+	*
 	* @param value - The {@link VideoPosition} to assign (e.g. `'auto'`, `'reserved-0'`).
 	*/
 	async setPosition(value) {
-		await this.executeMethod(this.id, "call.member.position.set", { position: value });
+		await this.executeMethod("call.member.position.set", { targets: [{
+			target: this.target,
+			position: value
+		}] });
 	}
 	/** Removes this participant from the call. */
 	async remove() {
-		const state = this._state$.value;
-		const target = {
-			member_id: this.id,
-			call_id: state.call_id ?? "",
-			node_id: state.node_id ?? ""
-		};
-		await this.executeMethod(target, "call.member.remove", {});
+		await this.executeMethod("call.member.remove", { targets: [this.target] });
 	}
 	/** Ends the call for this participant. */
 	async end() {
-		await this.executeMethod(this.id, "call.end", {});
+		await this.executeMethod("call.end", {});
 	}
 	/**
 	* Replaces custom metadata for this participant.
@@ -13975,7 +14238,7 @@ var Participant = class extends Destroyable {
 	}
 	/** Destroys the participant, releasing all subscriptions and references. */
 	destroy() {
-		this.executeMethod = void 0;
+		this.callExecuteMethod = void 0;
 		super.destroy();
 	}
 };
@@ -13987,8 +14250,8 @@ var Participant = class extends Destroyable {
 */
 var SelfParticipant = class extends Participant {
 	/** @internal */
-	constructor(id, executeMethod, vertoManager, deviceController) {
-		super(id, executeMethod, deviceController);
+	constructor(id, callExecuteMethod, vertoManager, deviceController) {
+		super(id, callExecuteMethod, deviceController);
 		this.vertoManager = vertoManager;
 		this._studioAudio$ = this.createBehaviorSubject(false);
 		this.capabilities = new SelfCapabilities();
@@ -14012,7 +14275,7 @@ var SelfParticipant = class extends Participant {
 	async enableStudioAudio() {
 		if (this._studioAudio$.value) return;
 		this._studioAudio$.next(true);
-		await this.executeMethod(this.id, "call.audioflags.set", {
+		await this.executeMethod("call.audioflags.set", {
 			echo_cancellation: false,
 			auto_gain: false,
 			noise_suppression: false
@@ -14025,18 +14288,37 @@ var SelfParticipant = class extends Participant {
 	async disableStudioAudio() {
 		if (!this._studioAudio$.value) return;
 		this._studioAudio$.next(false);
-		await this.executeMethod(this.id, "call.audioflags.set", {
+		await this.executeMethod("call.audioflags.set", {
 			echo_cancellation: true,
 			auto_gain: true,
 			noise_suppression: true
 		});
 	}
-	/** Starts sharing the local screen. */
-	async startScreenShare() {
+	/**
+	* Starts sharing the local screen.
+	*
+	* A call carries at most one screen share. Read `screenShareStatus` before
+	* calling and treat `'starting'`/`'stopping'` as busy.
+	*
+	* The call is unaffected when acquisition fails.
+	*
+	* @param options - Pass `{ audio: true }` to also request the shared
+	* surface's audio. Defaults to video only.
+	* @throws {ScreenShareAlreadyActiveError} When this call is already
+	* sharing a screen. Call {@link stopScreenShare} before starting another.
+	* @throws {AuxiliaryLegCancelledError} When {@link stopScreenShare} removes
+	* the share before its leg finishes connecting.
+	* @throws The raw `getDisplayMedia` error. A dismissed picker or a
+	* permission denial rejects with a `NotAllowedError` `DOMException` —
+	* inspect `error.name` to tell benign cancels apart from real failures.
+	*/
+	async startScreenShare(options) {
 		try {
-			await this.vertoManager.addScreenMedia();
+			await this.vertoManager.addScreenMedia(options);
 		} catch (error) {
-			logger$24.error("[Participant.startScreenShare] Screen share error:", error);
+			if (error instanceof AuxiliaryLegCancelledError) logger$25.debug("[Participant.startScreenShare] Screen share cancelled before connecting.");
+			else logger$25.error("[Participant.startScreenShare] Screen share error:", error);
+			throw error;
 		}
 	}
 	/** Observable of the current screen share status. */
@@ -14051,12 +14333,24 @@ var SelfParticipant = class extends Participant {
 	async stopScreenShare() {
 		return this.vertoManager.removeScreenMedia();
 	}
-	/** Adds an additional media input device to the call. */
+	/**
+	* Adds an additional media input device to the call.
+	*
+	* The call is unaffected when acquisition fails.
+	*
+	* @throws {AuxiliaryLegCancelledError} When {@link removeAdditionalDevice}
+	* removes the device before its leg finishes connecting.
+	* @throws The raw `getUserMedia` error (e.g. `NotAllowedError` on
+	* permission denial) — inspect `error.name` to decide how to react — or
+	* `AuxiliaryLegTimeoutError` if the leg does not connect in time.
+	*/
 	async addAdditionalDevice(options) {
 		try {
 			await this.vertoManager.addInputDevice(options);
 		} catch (error) {
-			logger$24.error("[Participant.startScreenShare] Screen share error:", error);
+			if (error instanceof AuxiliaryLegCancelledError) logger$25.debug("[Participant.addAdditionalDevice] Device removed before connecting.");
+			else logger$25.error("[Participant.addAdditionalDevice] Additional device error:", error);
+			throw error;
 		}
 	}
 	/** Removes an additional media input device by ID. */
@@ -14090,22 +14384,31 @@ var SelfParticipant = class extends Participant {
 		this.deviceController.selectAudioInputDevice(device);
 		if (options.savePreference) PreferencesContainer.instance.preferredAudioInput = device;
 	}
-	/** Updates the audio input track constraints for the active call. */
+	/**
+	* Updates the audio input track constraints for the active call.
+	* @returns whether the constraints reached the media the call is sending.
+	*/
 	async setAudioInputDeviceConstraints(constraints) {
-		await this.vertoManager.updateMediaConstraints({ audio: constraints });
+		return this.vertoManager.updateMediaConstraints({ audio: constraints });
 	}
-	/** Updates both audio and video input track constraints for the active call. */
+	/**
+	* Updates both audio and video input track constraints for the active call.
+	* @returns whether both kinds took the constraints.
+	*/
 	async setInputDevicesConstraints(constraints) {
-		await this.vertoManager.updateMediaConstraints(constraints);
+		return this.vertoManager.updateMediaConstraints(constraints);
 	}
 	/** Selects the video input device for future calls. Optionally saves as a preference. */
 	selectVideoInputDevice(device, options = {}) {
 		this.deviceController.selectVideoInputDevice(device);
 		if (options.savePreference) PreferencesContainer.instance.preferredVideoInput = device;
 	}
-	/** Updates the video input track constraints for the active call. */
+	/**
+	* Updates the video input track constraints for the active call.
+	* @returns whether the constraints reached the media the call is sending.
+	*/
 	async setVideoInputDeviceConstraints(constraints) {
-		await this.vertoManager.updateMediaConstraints({ video: constraints });
+		return this.vertoManager.updateMediaConstraints({ video: constraints });
 	}
 	/** Selects the audio output device. Optionally saves as a preference. */
 	selectAudioOutputDevice(device, options = {}) {
@@ -14118,7 +14421,7 @@ var SelfParticipant = class extends Participant {
 	*/
 	exitStudioModeIfActive() {
 		if (this._studioAudio$.value) {
-			logger$24.debug("[SelfParticipant] Exiting studio audio mode due to individual flag toggle");
+			logger$25.debug("[SelfParticipant] Exiting studio audio mode due to individual flag toggle");
 			this._studioAudio$.next(false);
 		}
 	}
@@ -14142,7 +14445,7 @@ var SelfParticipant = class extends Participant {
 		try {
 			await super.mute();
 		} catch (error) {
-			logger$24.warn("[Participant.toggleAudioInput] Server Error while muting audio input, proceeding with local toggle anyway", error);
+			logger$25.warn("[Participant.toggleAudioInput] Server Error while muting audio input, proceeding with local toggle anyway", error);
 		} finally {
 			this.vertoManager.muteMainAudioInputDevice();
 		}
@@ -14152,7 +14455,7 @@ var SelfParticipant = class extends Participant {
 		try {
 			await super.unmute();
 		} catch (error) {
-			logger$24.warn("[Participant.toggleAudioInput] Server Error while unmuting audio input, proceeding with local toggle anyway", error);
+			logger$25.warn("[Participant.toggleAudioInput] Server Error while unmuting audio input, proceeding with local toggle anyway", error);
 		} finally {
 			await this.vertoManager.unmuteMainAudioInputDevice();
 		}
@@ -14162,7 +14465,7 @@ var SelfParticipant = class extends Participant {
 		try {
 			await super.muteVideo();
 		} catch (error) {
-			logger$24.warn("[Participant.toggleVideoInput] Server Error while muting video input, proceeding with local toggle anyway", error);
+			logger$25.warn("[Participant.toggleVideoInput] Server Error while muting video input, proceeding with local toggle anyway", error);
 		} finally {
 			this.vertoManager.muteMainVideoInputDevice();
 		}
@@ -14172,7 +14475,7 @@ var SelfParticipant = class extends Participant {
 		try {
 			await super.unmuteVideo();
 		} catch (error) {
-			logger$24.warn("[Participant.toggleVideoInput] Server Error while unmuting video input, proceeding with local toggle anyway", error);
+			logger$25.warn("[Participant.toggleVideoInput] Server Error while unmuting video input, proceeding with local toggle anyway", error);
 		} finally {
 			await this.vertoManager.unmuteMainVideoInputDevice();
 		}
@@ -14377,7 +14680,7 @@ function filterAs(predicate, resultPath) {
 //#endregion
 //#region src/operators/throwOnRPCError.ts
 var import_cjs$21 = require_cjs();
-const logger$23 = getLogger();
+const logger$24 = getLogger();
 /**
 * RxJS operator that throws a {@link JSONRPCError} when the RPC response contains an error.
 * Passes successful responses through unchanged.
@@ -14385,14 +14688,14 @@ const logger$23 = getLogger();
 function throwOnRPCError() {
 	return (0, import_cjs$21.map)((response) => {
 		if (response.error) {
-			logger$23.error("[throwOnRPCError] RPC error response:", {
+			logger$24.error("[throwOnRPCError] RPC error response:", {
 				code: response.error.code,
 				message: response.error.message,
 				data: response.error.data
 			});
 			throw new JSONRPCError(response.error.code, response.error.message, response.error.data);
 		}
-		logger$23.debug("[throwOnRPCError] RPC successful response:", response);
+		logger$24.debug("[throwOnRPCError] RPC successful response:", response);
 		return response;
 	});
 }
@@ -14400,7 +14703,7 @@ function throwOnRPCError() {
 //#endregion
 //#region src/managers/CallEventsManager.ts
 var import_cjs$20 = require_cjs();
-const logger$22 = getLogger();
+const logger$23 = getLogger();
 const initialSessionState = {};
 /** @internal */
 var CallEventsManager = class extends Destroyable {
@@ -14504,7 +14807,7 @@ var CallEventsManager = class extends Destroyable {
 	}
 	initSubscriptions() {
 		this.subscribeTo(this.callJoinedEvent$, (callJoinedEvent) => {
-			logger$22.debug("[CallEventsManager] Handling call.joined event for call/session IDs:", {
+			logger$23.debug("[CallEventsManager] Handling call.joined event for call/session IDs:", {
 				callId: callJoinedEvent.call_id,
 				roomSessionId: callJoinedEvent.room_session_id
 			});
@@ -14531,19 +14834,19 @@ var CallEventsManager = class extends Destroyable {
 			if (this._self$.value?.capabilities.setLayout) this.updateLayouts();
 		});
 		this.subscribeTo(this.memberUpdates$, (member) => {
-			logger$22.debug("[CallEventsManager] Handling member update event for member ID:", member);
+			logger$23.debug("[CallEventsManager] Handling member update event for member ID:", member);
 			this.upsertParticipant(member);
 		});
 		this.subscribeTo(this.webRtcCallSession.memberLeft$, (memberLeftEvent) => {
-			logger$22.debug("[CallEventsManager] Handling member.left event for member ID:", memberLeftEvent.member.member_id);
+			logger$23.debug("[CallEventsManager] Handling member.left event for member ID:", memberLeftEvent.member.member_id);
 			const participants = { ...this._participants$.value };
 			if (memberLeftEvent.member.member_id in participants) {
 				delete participants[memberLeftEvent.member.member_id];
 				this._participants$.next(participants);
-			} else logger$22.warn(`[CallEventsManager] Received member.left event for unknown member ID: ${memberLeftEvent.member.member_id}`);
+			} else logger$23.warn(`[CallEventsManager] Received member.left event for unknown member ID: ${memberLeftEvent.member.member_id}`);
 		});
 		this.subscribeTo(this.webRtcCallSession.callUpdated$, (callUpdatedEvent) => {
-			logger$22.debug("[CallEventsManager] Handling call.updated event:", callUpdatedEvent);
+			logger$23.debug("[CallEventsManager] Handling call.updated event:", callUpdatedEvent);
 			const roomSession = callUpdatedEvent.room_session;
 			this._sessionState$.next({
 				...this._sessionState$.value,
@@ -14558,7 +14861,7 @@ var CallEventsManager = class extends Destroyable {
 			});
 		});
 		this.subscribeTo(this.layoutChangedEvent$, (layoutChangedEvent) => {
-			logger$22.debug("[CallEventsManager] Handling layout.changed event:", layoutChangedEvent);
+			logger$23.debug("[CallEventsManager] Handling layout.changed event:", layoutChangedEvent);
 			this._sessionState$.next({
 				...this._sessionState$.value,
 				layout_name: layoutChangedEvent.id,
@@ -14568,10 +14871,10 @@ var CallEventsManager = class extends Destroyable {
 		});
 	}
 	updateParticipantPositions(layoutChangedEvent) {
-		if (Object.keys(this._participants$.value).length > 0 && !layoutChangedEvent.layers.some((layer) => !!layer.member_id)) logger$22.warn("[CallEventsManager] No layers with member_id found in layout.changed event. Nothing to update.");
+		if (Object.keys(this._participants$.value).length > 0 && !layoutChangedEvent.layers.some((layer) => !!layer.member_id)) logger$23.warn("[CallEventsManager] No layers with member_id found in layout.changed event. Nothing to update.");
 		layoutChangedEvent.layers.filter((layer) => !!layer.member_id).filter((layer) => {
 			if (!(layer.member_id in this._participants$.value)) {
-				logger$22.warn(`[CallEventsManager] Skipping layout layer for unknown member_id: ${layer.member_id}`);
+				logger$23.warn(`[CallEventsManager] Skipping layout layer for unknown member_id: ${layer.member_id}`);
 				return false;
 			}
 			return true;
@@ -14589,12 +14892,17 @@ var CallEventsManager = class extends Destroyable {
 	updateLayouts() {
 		if (!this.selfId) return;
 		this.webRtcCallSession.executeMethod(this.selfId, "call.layout.list", {}).then((response) => {
+			const layouts = response.result?.layouts;
+			if (!layouts) {
+				logger$23.warn("[CallEventsManager] Layout list response carried no layouts; keeping current layouts");
+				return;
+			}
 			this._sessionState$.next({
 				...this._sessionState$.value,
-				layouts: response.result.layouts
+				layouts
 			});
 		}).catch((error) => {
-			logger$22.error("[CallEventsManager] Error fetching layouts:", error);
+			logger$23.error("[CallEventsManager] Error fetching layouts:", error);
 		});
 	}
 	updateParticipants(members) {
@@ -14610,7 +14918,7 @@ var CallEventsManager = class extends Destroyable {
 		}
 		const participant = this._participants$.value[member.member_id];
 		const oldValue = participant.value;
-		logger$22.debug("[CallEventsManager] Updating participant:", member.member_id, {
+		logger$23.debug("[CallEventsManager] Updating participant:", member.member_id, {
 			oldValue,
 			newValue: member
 		});
@@ -14623,17 +14931,17 @@ var CallEventsManager = class extends Destroyable {
 	}
 	get callJoinedEvent$() {
 		return this.cachedObservable("callJoinedEvent$", () => this.webRtcCallSession.callEvent$.pipe((0, import_cjs$20.filter)(isCallJoinedPayload), (0, import_cjs$20.tap)((event) => {
-			logger$22.debug("[CallEventsManager] Call joined event:", event);
+			logger$23.debug("[CallEventsManager] Call joined event:", event);
 		})));
 	}
 	get layoutChangedEvent$() {
 		return this.cachedObservable("layoutChangedEvent$", () => this.webRtcCallSession.callEvent$.pipe(filterAs(isLayoutChangedPayload, "layout"), (0, import_cjs$20.tap)((event) => {
-			logger$22.debug("[CallEventsManager] Layout changed event:", event);
+			logger$23.debug("[CallEventsManager] Layout changed event:", event);
 		})));
 	}
 	get memberUpdates$() {
 		return this.cachedObservable("memberUpdates$", () => (0, import_cjs$20.merge)(this.webRtcCallSession.memberJoined$, this.webRtcCallSession.memberUpdated$, this.webRtcCallSession.memberTalking$).pipe((0, import_cjs$20.map)((event) => event.member), (0, import_cjs$20.tap)((event) => {
-			logger$22.debug("[CallEventsManager] Member update event:", event);
+			logger$23.debug("[CallEventsManager] Member update event:", event);
 		})));
 	}
 	destroy() {
@@ -14651,6 +14959,111 @@ var CallEventsManager = class extends Destroyable {
 		super.destroy();
 	}
 };
+
+//#endregion
+//#region src/controllers/ConstraintFallbackHelper.ts
+/**
+* ConstraintFallbackHelper - Provides getUserMedia with automatic constraint
+* fallback on OverconstrainedError.
+*
+* When a specific device ID is requested, the helper tries progressively
+* looser constraints:
+*   1. `{ deviceId: { exact: deviceId } }` -- exact match
+*   2. `{ deviceId: deviceId }` -- preferred (browser may pick another)
+*   3. `{}` -- no constraint, browser default
+*
+* This prevents stale device IDs from blocking call setup.
+*
+* @see Section 5.8 and Section 11 of the Implementation Guide
+*/
+const logger$22 = getLogger();
+/**
+* Attempts getUserMedia with progressively looser constraints.
+*
+* The function tries three levels of constraint specificity for the given
+* device kind. Each level is only attempted if the previous one fails with
+* an OverconstrainedError. Non-OverconstrainedError failures (e.g.,
+* NotAllowedError) are thrown immediately without fallback.
+*
+* @param mediaDevices - Anything exposing `getUserMedia` (a full
+*   `WebRTCMediaDevices`, or a shim wrapping one)
+* @param constraints - The full MediaStreamConstraints to use as a base
+* @param kind - Which track kind to apply fallback to ('audio' | 'video')
+* @param deviceId - The device ID to try (if undefined, calls getUserMedia as-is)
+* @returns The stream and the fallback level that succeeded
+* @throws When all fallback levels fail, or when a non-OverconstrainedError occurs
+*/
+async function getUserMediaWithFallback(mediaDevices, constraints, kind, deviceId) {
+	if (!deviceId) return {
+		stream: await mediaDevices.getUserMedia(constraints),
+		fallbackLevel: "default"
+	};
+	const baseConstraints = typeof constraints[kind] === "object" ? constraints[kind] : {};
+	try {
+		const exactConstraints = {
+			...constraints,
+			[kind]: {
+				...baseConstraints,
+				deviceId: { exact: deviceId }
+			}
+		};
+		return {
+			stream: await mediaDevices.getUserMedia(exactConstraints),
+			fallbackLevel: "exact"
+		};
+	} catch (error) {
+		if (!isOverconstrainedError(error)) throw error;
+		logger$22.debug(`[ConstraintFallbackHelper] Exact constraint failed for ${kind}, trying preferred`, { deviceId });
+	}
+	try {
+		const preferredConstraints = {
+			...constraints,
+			[kind]: {
+				...baseConstraints,
+				deviceId
+			}
+		};
+		return {
+			stream: await mediaDevices.getUserMedia(preferredConstraints),
+			fallbackLevel: "preferred"
+		};
+	} catch (error) {
+		if (!isOverconstrainedError(error)) throw error;
+		logger$22.debug(`[ConstraintFallbackHelper] Preferred constraint failed for ${kind}, trying default`, { deviceId });
+	}
+	try {
+		const defaultConstraints = {
+			...constraints,
+			[kind]: { ...baseConstraints }
+		};
+		if (typeof defaultConstraints[kind] === "object") {
+			const { deviceId: _removed, ...rest } = defaultConstraints[kind];
+			defaultConstraints[kind] = rest;
+		}
+		const stream = await mediaDevices.getUserMedia(defaultConstraints);
+		logger$22.warn(`[ConstraintFallbackHelper] Fell back to browser default for ${kind}`, { requestedDeviceId: deviceId });
+		return {
+			stream,
+			fallbackLevel: "default"
+		};
+	} catch (error) {
+		logger$22.error(`[ConstraintFallbackHelper] All fallback levels exhausted for ${kind}`, {
+			deviceId,
+			error
+		});
+		throw error;
+	}
+}
+/**
+* Checks whether an error is an OverconstrainedError.
+*
+* Browsers may throw either a native OverconstrainedError or a DOMException
+* with a specific name.
+*/
+function isOverconstrainedError(error) {
+	if (error instanceof Error) return error.name === "OverconstrainedError" || error.name === "ConstraintNotSatisfiedError";
+	return false;
+}
 
 //#endregion
 //#region src/helpers/SDPHelper.ts
@@ -15210,6 +15623,7 @@ var LocalStreamController = class extends Destroyable {
 		this._localAudioTracks$ = this.createBehaviorSubject([]);
 		this._localVideoTracks$ = this.createBehaviorSubject([]);
 		this._mediaTrackEnded$ = this.createSubject();
+		this._trackOrigins = /* @__PURE__ */ new WeakMap();
 	}
 	get localStream$() {
 		return this._localStream$.asObservable().pipe((0, import_cjs$17.takeUntil)(this.destroyed$));
@@ -15232,6 +15646,22 @@ var LocalStreamController = class extends Destroyable {
 	get localVideoTracks() {
 		return this._localVideoTracks$.value;
 	}
+	tagTracks(tracks, origin) {
+		for (const track of tracks) this._trackOrigins.set(track, origin);
+	}
+	setTrackOrigin(track, origin) {
+		this._trackOrigins.set(track, origin);
+	}
+	getTrackOrigin(track) {
+		return this._trackOrigins.get(track);
+	}
+	/**
+	* Fail-safe: an unrecorded track reads as not-a-device-capture, so a missed
+	* tagging site leaves media alone rather than destroying it.
+	*/
+	isDeviceCapture(track) {
+		return this._trackOrigins.get(track) === "device";
+	}
 	/**
 	* Build the local media stream based on the provided options.
 	*/
@@ -15241,13 +15671,16 @@ var LocalStreamController = class extends Destroyable {
 		if (this.options.inputAudioStream ?? this.options.inputVideoStream) {
 			const tracks = [...this.options.inputAudioStream?.getTracks() ?? [], ...this.options.inputVideoStream?.getTracks() ?? []];
 			stream = new MediaStream(tracks);
+			this.tagTracks(tracks, "application");
 		} else if (this.options.propose === "screenshare") {
-			logger$19.debug("[LocalStreamController] Requesting display media for screen sharing with audio:", Boolean(this.options.inputAudioDeviceConstraints));
+			const audio = this.options.screenShareAudio ?? false;
+			logger$19.debug("[LocalStreamController] Requesting display media for screen sharing with audio:", audio);
 			stream = await this.options.getDisplayMedia({
 				video: true,
-				audio: Boolean(this.options.inputAudioDeviceConstraints)
+				audio
 			});
 			logger$19.debug("[LocalStreamController] Screen share media obtained:", stream);
+			this.tagTracks(stream.getTracks(), "display");
 		} else {
 			const constraints = {
 				audio: this.options.inputAudioDeviceConstraints,
@@ -15256,6 +15689,7 @@ var LocalStreamController = class extends Destroyable {
 			logger$19.debug("[LocalStreamController] Requesting user media with constraints:", constraints);
 			stream = await this.options.getUserMedia(constraints);
 			logger$19.debug("[LocalStreamController] User media obtained:", stream);
+			this.tagTracks(stream.getTracks(), "device");
 		}
 		this._localStream$.next(stream);
 		this._localAudioTracks$.next(stream.getAudioTracks());
@@ -15265,10 +15699,13 @@ var LocalStreamController = class extends Destroyable {
 	/**
 	* Add a local media track to the local stream.
 	* @param track - The MediaStreamTrack to add
+	* @param origin - Defaults to `'device'`; every internal caller passes a
+	* fresh `getUserMedia` capture.
 	* @returns The MediaStream (either existing or newly created)
 	*/
-	addTrack(track) {
+	addTrack(track, origin = "device") {
 		const localStream = this._localStream$.value ?? new MediaStream();
+		this._trackOrigins.set(track, origin);
 		track.addEventListener("ended", this.mediaTrackEndedHandler);
 		localStream.addTrack(track);
 		this._localStream$.next(localStream);
@@ -15538,15 +15975,27 @@ var TransceiverController = class extends Destroyable {
 			for (let i = 0; i < Number(msStreamsNumber); i++) this.peerConnection.addTransceiver("video", { direction: "recvonly" });
 		}
 	}
+	/**
+	* @returns whether every live sender of the kind took the constraints. A
+	* skipped non-device sender, an exhausted fallback, and having no live sender
+	* at all all report `false` — `mediaParamsUpdated.applied` is built from this,
+	* and an application told `true` cannot tell a working push from a no-op.
+	*/
 	async updateSendersConstraints(kind, constraints) {
 		if (!constraints) {
 			this.stopTrackSender(kind);
-			return Promise.resolve();
+			return false;
 		}
 		const senders = this.peerConnection.getSenders().filter((sender) => sender.track?.kind === kind && sender.track.readyState === "live");
+		let applied = senders.length > 0;
 		for (const sender of senders) {
 			const { track } = sender;
 			if (track) {
+				if (!this.options.localStreamController.isDeviceCapture(track)) {
+					logger$18.debug(`[TransceiverController] Skipping ${kind} constraints for a non-device track (origin: ${this.options.localStreamController.getTrackOrigin(track) ?? "unrecorded"}), track ${track.id}`);
+					applied = false;
+					continue;
+				}
 				const constraintsToApply = {
 					...track.getConstraints(),
 					...constraints
@@ -15562,33 +16011,39 @@ var TransceiverController = class extends Destroyable {
 					} catch (fallbackError) {
 						logger$18.warn(`[TransceiverController] Track replacement fallback also failed for ${kind} track:`, fallbackError);
 						this.options.onError?.(new MediaTrackError("updateSendersConstraints", kind, fallbackError));
+						applied = false;
 					}
 				}
 			}
 		}
+		return applied;
 	}
 	/**
-	* Fallback when applyConstraints fails: stop the current track, acquire a new
-	* one via getUserMedia with the merged constraints (preserving the current
-	* deviceId), replace the sender track, and update the localStream.
+	* Fallback when applyConstraints fails, which on iOS Safari it silently does.
 	*
-	* This is critical for iOS Safari where applyConstraints on audio tracks
-	* silently fails or throws.
+	* Order matters: acquiring before stopping means a failed acquisition leaves
+	* the existing media playing. The deviceId goes through the fallback ladder
+	* rather than pinned `{ exact }`, so a stale id degrades instead of failing.
 	*/
 	async replaceTrackFallback(sender, oldTrack, kind, mergedConstraints) {
 		const { deviceId } = oldTrack.getSettings();
-		const constraintsWithDevice = {
-			...mergedConstraints,
-			...deviceId ? { deviceId: { exact: deviceId } } : {}
-		};
-		const trackId = oldTrack.id;
+		const { stream, fallbackLevel } = await getUserMediaWithFallback({ getUserMedia: this.options.getUserMedia }, { [kind]: mergedConstraints }, kind, deviceId);
+		const newTrack = stream.getTracks().find((t) => t.kind === kind);
+		if (!newTrack) {
+			stream.getTracks().forEach((t) => t.stop());
+			throw new MediaTrackError("replaceTrackFallback", kind, /* @__PURE__ */ new Error("getUserMedia returned no track of the requested kind"));
+		}
+		try {
+			await sender.replaceTrack(newTrack);
+		} catch (error) {
+			stream.getTracks().forEach((t) => t.stop());
+			throw error;
+		}
+		const oldTrackId = oldTrack.id;
+		this.options.localStreamController.removeTrack(oldTrackId);
 		oldTrack.stop();
-		this.options.localStreamController.removeTrack(trackId);
-		const newTrack = (await this.options.getUserMedia({ [kind]: constraintsWithDevice })).getTracks().find((t) => t.kind === kind);
-		if (!newTrack) throw new MediaTrackError("replaceTrackFallback", kind, /* @__PURE__ */ new Error("getUserMedia returned no track of the requested kind"));
-		await sender.replaceTrack(newTrack);
 		this.options.localStreamController.addTrack(newTrack);
-		logger$18.debug(`[TransceiverController] Track replacement fallback succeeded for ${kind}. New track: ${newTrack.id}`);
+		logger$18.debug(`[TransceiverController] Track replacement fallback succeeded for ${kind} (deviceId fallback level: ${fallbackLevel}). New track: ${newTrack.id}`);
 	}
 	getMediaDirections() {
 		if (this.peerConnection.connectionState === "connected") return this.peerConnection.getTransceivers().reduce((acc, transceiver) => {
@@ -15658,48 +16113,44 @@ var RTCPeerConnectionController = class extends Destroyable {
 			this.negotiationNeeded$.next();
 		};
 		this.updateSelectedInputDevice = async (kind, deviceInfo) => {
+			const { localStream } = this;
+			if (!localStream) {
+				logger$17.warn("[RTCPeerConnectionController] No local stream available to update input device.");
+				return;
+			}
+			const currentTrack = localStream.getTracks().find((track) => track.kind === kind);
+			if (!currentTrack) {
+				logger$17.debug(`[RTCPeerConnectionController] No ${kind} track to switch.`);
+				return;
+			}
+			if (!deviceInfo) {
+				logger$17.debug(`[RTCPeerConnectionController] ${kind} input device selected: none`);
+				this.stopTrackSender(kind);
+				return;
+			}
+			const constraints = {
+				...currentTrack.getConstraints(),
+				...this.deviceController.deviceInfoToConstraints(deviceInfo)
+			};
 			try {
-				const { localStream } = this;
-				if (!localStream) {
-					logger$17.warn("[RTCPeerConnectionController] No local stream available to update input device.");
-					return;
-				}
-				logger$17.debug(`[RTCPeerConnectionController] Updating selected ${kind} input device:`, localStream.getTracks());
-				const track = localStream.getTracks().find((track$1) => track$1.kind === kind);
-				if (track) {
-					this.transceiverController?.stopTrackSender(kind);
-					this.localStreamController.removeTrack(track.id);
-					logger$17.debug(`[RTCPeerConnectionController] Stopped existing ${kind} track: ${track.id}`, localStream.getTracks());
-					if (!deviceInfo) {
-						logger$17.debug(`[RTCPeerConnectionController] ${kind} input device selected: none`);
-						return;
-					}
-					const streamTrack = (await this.getUserMedia({ [kind]: {
-						...track.getConstraints(),
-						...this.deviceController.deviceInfoToConstraints(deviceInfo)
-					} })).getTracks().find((t) => t.kind === kind);
-					if (streamTrack) {
-						logger$17.debug(`[RTCPeerConnectionController] Adding new ${kind} track: ${streamTrack.id}`);
-						this.localStreamController.addTrack(streamTrack);
-						await this.transceiverController?.replaceSenderTrack(kind, streamTrack);
-						logger$17.debug(`[RTCPeerConnectionController] Added new ${kind} track: ${streamTrack.id}`, this.localStream?.getTracks());
-					}
-				}
-				logger$17.debug(`[RTCPeerConnectionController] ${kind} input device selected:`, deviceInfo?.label);
+				const newTrack = await this.acquireInputTrack(kind, constraints, deviceInfo, currentTrack);
+				await this.attachInputTrack(kind, newTrack, currentTrack);
+				logger$17.debug(`[RTCPeerConnectionController] ${kind} input device selected:`, deviceInfo.label, newTrack.id);
 			} catch (error) {
 				logger$17.error(`[RTCPeerConnectionController] Failed to select ${kind} input device:`, error);
-				this._errors$.next(toError(error));
-				throw error;
+				this._errors$.next(new MediaTrackError("updateSelectedInputDevice", kind, error));
 			}
 		};
 		this._isNegotiating$ = this.createBehaviorSubject(false);
 		this._memberId = null;
+		this._nodeId = null;
 		this._iceConnectionState$ = this.createReplaySubject(1);
 		this._connectionState$ = this.createReplaySubject(1);
 		this._signalingState$ = this.createReplaySubject(1);
 		this._iceGatheringState$ = this.createReplaySubject(1);
 		this._errors$ = this.createReplaySubject(1);
 		this._iceCandidates$ = this.createReplaySubject(1);
+		this._localMediaSettled$ = this.createReplaySubject(1);
 		this._initialized$ = this.createReplaySubject(1);
 		this._remoteDescription$ = this.createReplaySubject(1);
 		this._remoteStream$ = this.createBehaviorSubject(null);
@@ -15732,6 +16183,7 @@ var RTCPeerConnectionController = class extends Destroyable {
 			inputVideoStream: this.options.inputVideoStream,
 			inputAudioDeviceConstraints: this.inputAudioDeviceConstraints,
 			inputVideoDeviceConstraints: this.inputVideoDeviceConstraints,
+			screenShareAudio: this.options.screenShareAudio,
 			getUserMedia: async (constraints) => this.getUserMedia(constraints),
 			getDisplayMedia: async (options$1) => this.getDisplayMedia(options$1)
 		});
@@ -15758,6 +16210,13 @@ var RTCPeerConnectionController = class extends Destroyable {
 	get memberId() {
 		return this._memberId;
 	}
+	/** The node this leg's invite landed on — auxiliary legs are placed independently. */
+	setNodeId(nodeId) {
+		this._nodeId = nodeId;
+	}
+	get nodeId() {
+		return this._nodeId;
+	}
 	stopTrackSender(kind, options = { updateTransceiverDirection: false }) {
 		const audioCovered = kind === "audio" || kind === "both";
 		if (audioCovered && this._localAudioPipeline) this.stopRawAudioInputForPipeline();
@@ -15767,10 +16226,7 @@ var RTCPeerConnectionController = class extends Destroyable {
 	}
 	stopRawAudioInputForPipeline() {
 		const rawTracks = this.localStreamController.localAudioTracks;
-		for (const track of rawTracks) if (track.readyState === "live") {
-			track.stop();
-			this.localStreamController.removeTrack(track.id);
-		}
+		for (const track of rawTracks) if (track.readyState === "live") this.localStreamController.removeTrack(track.id);
 		this._localAudioPipeline?.setInputTrack(null);
 	}
 	get isNegotiating$() {
@@ -15803,6 +16259,10 @@ var RTCPeerConnectionController = class extends Destroyable {
 	get remoteDescription$() {
 		return this.cachedObservable("remoteDescription$", () => this._remoteDescription$.asObservable().pipe((0, import_cjs$16.takeUntil)(this.destroyed$)));
 	}
+	/** Emits once local media is settled — acquired, or knowingly receive-only. */
+	get localMediaSettled$() {
+		return this.cachedObservable("localMediaSettled$", () => this._localMediaSettled$.asObservable().pipe((0, import_cjs$16.takeUntil)(this.destroyed$)));
+	}
 	get localStream$() {
 		return this.cachedObservable("localStream$", () => this.localStreamController.localStream$.pipe((0, import_cjs$16.takeUntil)(this.destroyed$)));
 	}
@@ -15829,6 +16289,9 @@ var RTCPeerConnectionController = class extends Destroyable {
 	}
 	get propose() {
 		return this.options.propose ?? "main";
+	}
+	get connectionState() {
+		return this.peerConnection?.connectionState;
 	}
 	get isAdditionalDevice() {
 		return this.propose === "additional-device";
@@ -15910,7 +16373,7 @@ var RTCPeerConnectionController = class extends Destroyable {
 			case "main":
 			default: return {
 				...options,
-				offerToReceiveAudio: true,
+				offerToReceiveAudio: this.options.receiveAudio ?? true,
 				offerToReceiveVideo: this.options.receiveVideo ?? Boolean(this.inputVideoDeviceConstraints)
 			};
 		}
@@ -15958,7 +16421,7 @@ var RTCPeerConnectionController = class extends Destroyable {
 				this._isNegotiating$.next(true);
 				await this._setRemoteDescription(this.sdpInit);
 			} else {
-				await this.setupTrackHandling();
+				if (!await this.setupTrackHandling()) return;
 				this._initialized$.next(true);
 			}
 		} catch (error) {
@@ -16064,13 +16527,14 @@ var RTCPeerConnectionController = class extends Destroyable {
 	*/
 	async acceptInbound(mediaOverrides) {
 		if (mediaOverrides) {
-			const { audio, video, receiveAudio, receiveVideo } = mediaOverrides;
+			const { audio, video, receiveAudio, receiveVideo, fallbackToReceiveOnly } = mediaOverrides;
 			this.options = {
 				...this.options,
 				...audio !== void 0 ? { audio } : {},
 				...video !== void 0 ? { video } : {},
 				...receiveAudio !== void 0 ? { receiveAudio } : {},
-				...receiveVideo !== void 0 ? { receiveVideo } : {}
+				...receiveVideo !== void 0 ? { receiveVideo } : {},
+				...fallbackToReceiveOnly !== void 0 ? { fallbackToReceiveOnly } : {}
 			};
 			this.transceiverController?.updateOptions({
 				receiveAudio: this.receiveAudio,
@@ -16081,7 +16545,10 @@ var RTCPeerConnectionController = class extends Destroyable {
 				inputVideoDeviceConstraints: this.inputVideoDeviceConstraints
 			});
 		}
-		await this.setupLocalTracks();
+		if (!await this.setupLocalTracks()) {
+			logger$17.debug("[RTCPeerConnectionController] Inbound answer abandoned; the connection went away.");
+			return;
+		}
 		const { answerOptions } = this;
 		logger$17.debug("[RTCPeerConnectionController] Creating inbound answer with options:", answerOptions);
 		await this.createAnswer(answerOptions);
@@ -16219,23 +16686,52 @@ var RTCPeerConnectionController = class extends Destroyable {
 	}
 	/**
 	* Setup track handling for remote tracks.
+	*
+	* @returns `false` when the connection went away while local media was being
+	* acquired — see {@link setupLocalTracks}.
 	*/
 	async setupTrackHandling() {
 		if (!this.peerConnection) throw new DependencyError("RTCPeerConnection is not initialized");
-		await this.setupLocalTracks();
+		if (!await this.setupLocalTracks()) return false;
 		await this.setupRemoteTracks();
+		return true;
 	}
+	/**
+	* @returns `false` when the connection was torn down while getUserMedia was
+	* in flight. The acquisition is not cancellable, so the caller must stop
+	* rather than go on to touch a peer connection that is closed or gone.
+	*/
 	async setupLocalTracks() {
 		logger$17.debug("[RTCPeerConnectionController] Setting up local tracks/transceivers.");
-		const localStream = this.localStream ?? await this.localStreamController.buildLocalStream();
+		if (this.hasNoLocalMediaToSend()) {
+			if (!this.receiveAudio && !this.receiveVideo) throw new InvalidParams("Call requests no media: enable audio/video or receiveAudio/receiveVideo");
+			logger$17.debug("[RTCPeerConnectionController] No local media requested; negotiating receive-only.");
+			this.setupReceiveOnlyTransceivers();
+			this._localMediaSettled$.next();
+			return true;
+		}
+		let localStream;
+		try {
+			localStream = this.localStream ?? await this.localStreamController.buildLocalStream();
+		} catch (error) {
+			this.handleLocalMediaFailure(error);
+			this._localMediaSettled$.next();
+			return true;
+		}
+		if (!this.peerConnection || this.peerConnection.signalingState === "closed") {
+			logger$17.debug("[RTCPeerConnectionController] Local media arrived after teardown; releasing it.");
+			localStream.getTracks().forEach((track) => track.stop());
+			return false;
+		}
+		this._localMediaSettled$.next();
 		if (this.transceiverController?.useAddStream ?? false) {
 			logger$17.warn("[RTCPeerConnectionController] Using deprecated addStream API to add local stream.");
-			this.peerConnection?.addStream(localStream);
+			this.peerConnection.addStream(localStream);
 			if (!this.isNegotiating) {
 				logger$17.debug("[RTCPeerConnectionController] Forcing negotiationneeded after local tracks setup.");
 				this.negotiationNeeded$.next();
 			}
-			return;
+			return true;
 		}
 		for (const kind of ["audio", "video"]) {
 			const tracks = (kind === "audio" ? localStream.getAudioTracks() : localStream.getVideoTracks()).map((track, index) => ({
@@ -16249,10 +16745,53 @@ var RTCPeerConnectionController = class extends Destroyable {
 					await this.transceiverController?.setupTransceiverSender(track, localStream, transceivers[index]);
 				} else {
 					logger$17.debug(`[RTCPeerConnectionController] Using addTrack for local ${kind} track:`, track.id);
-					this.peerConnection?.addTrack(track, localStream);
+					this.peerConnection.addTrack(track, localStream);
 				}
 			}
 		}
+		return true;
+	}
+	/** True for a main connection with no local media to send. */
+	hasNoLocalMediaToSend() {
+		const hasInputStreams = Boolean(this.options.inputAudioStream ?? this.options.inputVideoStream);
+		return this.propose === "main" && !this.localStream && !hasInputStreams && !this.inputAudioDeviceConstraints && !this.inputVideoDeviceConstraints;
+	}
+	/** The media kinds this connection wants to send: 'audiovideo' | 'video' | 'audio'. */
+	get requestedMediaKinds() {
+		const wantsAudio = Boolean(this.inputAudioDeviceConstraints);
+		const wantsVideo = Boolean(this.inputVideoDeviceConstraints);
+		if (wantsAudio && wantsVideo) return "audiovideo";
+		return wantsVideo ? "video" : "audio";
+	}
+	/**
+	* Handle a local media acquisition failure with a typed, semantically
+	* accurate MediaAccessError created at the acquisition site:
+	* - Auxiliary connections (screenshare / additional-device) throw a
+	*   non-fatal error — VertoManager surfaces it and the call is unaffected.
+	* - The main connection degrades to receive-only when allowed (default),
+	*   otherwise fails with a fatal error.
+	*/
+	handleLocalMediaFailure(error) {
+		if (this.propose === "screenshare") throw new MediaAccessError("startScreenShare", "screen", error, false);
+		if (this.propose === "additional-device") throw new MediaAccessError("addInputDevice", this.requestedMediaKinds, error, false);
+		const canReceive = this.receiveAudio || this.receiveVideo;
+		if (!((this.options.fallbackToReceiveOnly ?? true) && canReceive)) throw new MediaAccessError("acquireLocalMedia", this.requestedMediaKinds, error, true);
+		logger$17.warn("[RTCPeerConnectionController] Local media unavailable; continuing receive-only:", error);
+		this._errors$.next(new MediaAccessError("acquireLocalMedia", this.requestedMediaKinds, error, false));
+		this.setupReceiveOnlyTransceivers();
+	}
+	/**
+	* Negotiate receive-only m-lines when there are no local tracks to send.
+	* Only offer-type connections add transceivers — answer-type connections
+	* reuse the transceivers created from the remote offer.
+	*/
+	setupReceiveOnlyTransceivers() {
+		if (this.type !== "offer") return;
+		if (this.transceiverController?.useAddTransceivers ?? false) {
+			this.peerConnection?.addTransceiver("audio", { direction: this.receiveAudio ? "recvonly" : "inactive" });
+			this.peerConnection?.addTransceiver("video", { direction: this.receiveVideo ? "recvonly" : "inactive" });
+		}
+		if (!this.isNegotiating) this.negotiationNeeded$.next();
 	}
 	async getUserMedia(constraints) {
 		return (this.options.webRTCApiProvider?.mediaDevices ?? navigator.mediaDevices).getUserMedia(constraints);
@@ -16290,13 +16829,68 @@ var RTCPeerConnectionController = class extends Destroyable {
 			stream = await this.getUserMedia({ audio: constraints });
 		} catch (error) {
 			logger$17.error("[RTCPeerConnectionController] Failed to re-acquire mic for pipeline restore:", error);
-			this._errors$.next(toError(error));
+			this._errors$.next(new MediaTrackError("restoreAudioPipelineInput", "audio", error));
 			return;
 		}
 		const newTrack = stream.getAudioTracks().at(0);
 		if (!newTrack) return;
 		this.localStreamController.addTrack(newTrack);
 		this._localAudioPipeline.setInputTrack(newTrack);
+	}
+	/**
+	* Capture the newly selected device, leaving the current capture running.
+	*
+	* A rejection must leave the current track sending, so nothing is released
+	* until the replacement is in hand. The one exception is hardware that admits
+	* a single opener — a phone's front and back cameras, typically — which
+	* rejects the second capture until the first is closed.
+	*/
+	async acquireInputTrack(kind, constraints, deviceInfo, currentTrack) {
+		try {
+			return await this.captureTrack(kind, constraints, deviceInfo.deviceId);
+		} catch (error) {
+			if (!isMediaDeviceInUse(error)) throw error;
+			logger$17.warn(`[RTCPeerConnectionController] ${kind} device is held exclusively; releasing the current capture to retry:`, error);
+			const previousDeviceId = currentTrack.getSettings().deviceId;
+			this.stopTrackSender(kind);
+			try {
+				return await this.captureTrack(kind, constraints, deviceInfo.deviceId);
+			} catch (retryError) {
+				await this.restorePreviousInputTrack(kind, constraints, previousDeviceId, currentTrack);
+				throw retryError;
+			}
+		}
+	}
+	async captureTrack(kind, constraints, deviceId) {
+		const { stream, fallbackLevel } = await getUserMediaWithFallback({ getUserMedia: async (c) => this.getUserMedia(c) }, { [kind]: constraints }, kind, deviceId);
+		const track = stream.getTracks().find((t) => t.kind === kind);
+		if (!track) {
+			stream.getTracks().forEach((t) => t.stop());
+			throw new MediaTrackError("updateSelectedInputDevice", kind, /* @__PURE__ */ new Error("getUserMedia returned no track of the requested kind"));
+		}
+		if (fallbackLevel !== "exact") logger$17.warn(`[RTCPeerConnectionController] ${kind} device acquired at fallback level '${fallbackLevel}'; the capture may not be the requested device.`);
+		return track;
+	}
+	/** Best-effort return to the device that was released for an exclusive retry. */
+	async restorePreviousInputTrack(kind, constraints, previousDeviceId, releasedTrack) {
+		try {
+			const restored = await this.captureTrack(kind, constraints, previousDeviceId);
+			await this.attachInputTrack(kind, restored, releasedTrack);
+		} catch (error) {
+			logger$17.error(`[RTCPeerConnectionController] Failed to restore the previous ${kind} device:`, error);
+		}
+	}
+	async attachInputTrack(kind, newTrack, oldTrack) {
+		const pipelineOwnsAudio = kind === "audio" && this._localAudioPipeline;
+		if (!pipelineOwnsAudio) try {
+			await this.transceiverController?.replaceSenderTrack(kind, newTrack);
+		} catch (error) {
+			newTrack.stop();
+			throw error;
+		}
+		this.localStreamController.removeTrack(oldTrack.id);
+		this.localStreamController.addTrack(newTrack);
+		if (pipelineOwnsAudio) this._localAudioPipeline?.setInputTrack(newTrack);
 	}
 	/**
 	* Return the lazily-created {@link LocalAudioPipeline}, constructing it on
@@ -16331,6 +16925,7 @@ var RTCPeerConnectionController = class extends Destroyable {
 		const sender = (this.transceiverController?.audioTransceivers.at(0))?.sender ?? this.peerConnection.getSenders().find((s) => s.track?.kind === "audio");
 		if (!sender || !raw) return;
 		try {
+			this.localStreamController.setTrackOrigin(this._localAudioPipeline.outputTrack, "processed");
 			await sender.replaceTrack(this._localAudioPipeline.outputTrack);
 		} catch (error) {
 			logger$17.warn("[RTCPeerConnectionController] Failed to route audio sender through pipeline:", error);
@@ -16352,7 +16947,7 @@ var RTCPeerConnectionController = class extends Destroyable {
 			logger$17.debug(`[RTCPeerConnectionController] ${track.kind} track added:`, track.id);
 		} catch (error) {
 			logger$17.error(`[RTCPeerConnectionController] Failed to add ${track.kind} track:`, error);
-			this._errors$.next(toError(error));
+			this._errors$.next(new MediaTrackError("addLocalTrack", track.kind, error));
 			throw error;
 		}
 	}
@@ -16377,7 +16972,7 @@ var RTCPeerConnectionController = class extends Destroyable {
 			logger$17.debug(`[RTCPeerConnectionController] ${sender.track?.kind} track removed:`, trackId);
 		} catch (error) {
 			logger$17.error(`[RTCPeerConnectionController] Failed to remove ${sender.track?.kind} track:`, error);
-			this._errors$.next(toError(error));
+			this._errors$.next(new MediaTrackError("removeLocalTrack", sender.track?.kind ?? "unknown", error));
 			throw error;
 		}
 	}
@@ -16391,37 +16986,68 @@ var RTCPeerConnectionController = class extends Destroyable {
 		for (const existingTrack of existingTracks) this.removeLocalTrack(existingTrack.id);
 		this.addLocalTrack(track);
 	}
+	/**
+	* @returns whether the constraints reached the media the leg is sending.
+	*
+	* With the pipeline engaged the audio sender carries the processed
+	* destination track, so the sender scan would find nothing it may touch and
+	* every audio constraint API would silently no-op. The constraints belong to
+	* the pipeline's device source, which is the capture that sender ultimately
+	* carries.
+	*/
 	async updateSendersConstraints(kind, constraints) {
-		await this.transceiverController?.updateSendersConstraints(kind, constraints);
+		if (kind === "audio" && this._localAudioPipeline) {
+			if (!constraints) {
+				this.stopTrackSender("audio");
+				return false;
+			}
+			return this.applyPipelineSourceConstraints(constraints);
+		}
+		return await this.transceiverController?.updateSendersConstraints(kind, constraints) ?? false;
 	}
 	/**
-	* Replace the current audio track with a new one using the given constraints.
-	* Used for server-pushed audio constraint changes where applyConstraints
-	* fails on iOS Safari. Stops the current track, acquires a new one via
-	* getUserMedia, and replaces the sender track.
+	* Mirror of the sender path for a piped audio leg: same merge, same fallback
+	* ladder, same device-capture invariant — but the swap target is the pipeline
+	* input, so the sender keeps emitting the pipeline's output track and its
+	* identity survives the change.
 	*/
-	async replaceAudioTrackWithConstraints(constraints) {
-		const senders = this.peerConnection?.getSenders().filter((s) => s.track?.kind === "audio" && s.track.readyState === "live");
-		if (!senders || senders.length === 0) {
-			logger$17.warn("[RTCPeerConnectionController] No live audio sender to replace");
-			return;
+	async applyPipelineSourceConstraints(constraints) {
+		const pipeline = this._localAudioPipeline;
+		const source = this.localStreamController.localAudioTracks.at(0);
+		if (!pipeline || !source) {
+			logger$17.debug("[RTCPeerConnectionController] No pipeline input to constrain.");
+			return false;
 		}
-		for (const sender of senders) {
-			const oldTrack = sender.track;
-			if (!oldTrack) continue;
-			const { deviceId } = oldTrack.getSettings();
-			const mergedConstraints = {
-				...oldTrack.getConstraints(),
-				...constraints,
-				...deviceId ? { deviceId: { exact: deviceId } } : {}
-			};
-			const trackId = oldTrack.id;
-			oldTrack.stop();
-			this.localStreamController.removeTrack(trackId);
-			const newTrack = (await this.getUserMedia({ audio: mergedConstraints })).getAudioTracks()[0];
-			await sender.replaceTrack(newTrack);
+		if (!this.localStreamController.isDeviceCapture(source)) {
+			logger$17.debug(`[RTCPeerConnectionController] Skipping audio constraints for a non-device pipeline input (origin: ${this.localStreamController.getTrackOrigin(source) ?? "unrecorded"}).`);
+			return false;
+		}
+		const merged = {
+			...source.getConstraints(),
+			...constraints
+		};
+		try {
+			await source.applyConstraints(merged);
+			logger$17.debug("[RTCPeerConnectionController] Pipeline input constraints updated:", merged);
+			return true;
+		} catch (error) {
+			logger$17.warn("[RTCPeerConnectionController] applyConstraints failed on the pipeline input, re-acquiring:", error);
+		}
+		try {
+			const { stream } = await getUserMediaWithFallback({ getUserMedia: async (c) => this.getUserMedia(c) }, { audio: merged }, "audio", source.getSettings().deviceId);
+			const newTrack = stream.getAudioTracks().at(0);
+			if (!newTrack) {
+				stream.getTracks().forEach((track) => track.stop());
+				throw new Error("getUserMedia returned no audio track");
+			}
+			this.localStreamController.removeTrack(source.id);
 			this.localStreamController.addTrack(newTrack);
-			logger$17.debug(`[RTCPeerConnectionController] Audio track replaced for server-pushed params. New track: ${newTrack.id}`);
+			pipeline.setInputTrack(newTrack);
+			return true;
+		} catch (error) {
+			logger$17.warn("[RTCPeerConnectionController] Failed to re-acquire the pipeline input for constraints:", error);
+			this._errors$.next(new MediaTrackError("updateSendersConstraints", "audio", error));
+			return false;
 		}
 	}
 	/**
@@ -16487,7 +17113,11 @@ function isVertoInviteMessage(value) {
 	const msg = value;
 	return msg.method === "verto.invite" && isObject(msg.params) && hasProperty(msg.params, "sdp") && hasProperty(msg.params, "callID");
 }
-function isVertoByeMessage(value) {
+/**
+* Guards inbound `verto.bye` frames (server → client). Outbound bye messages are
+* built locally and never type-guarded, so only the inbound shape is asserted.
+*/
+function isVertoByeInboundMessage(value) {
 	if (!isVertoMethodMessage(value)) return false;
 	return value.method === "verto.bye";
 }
@@ -16506,6 +17136,14 @@ function isVertoMediaParamsInnerParams(value) {
 }
 function isVertoPingInnerParams(value) {
 	return isObject(value) && hasProperty(value, "jsonrpc") && value.jsonrpc === "2.0" && hasProperty(value, "method") && value.method === "verto.ping";
+}
+/**
+* Guards the params of an inbound `verto.bye` frame (top-level `callID`). Use
+* this to recognise the bye payload extracted by `vertoBye$`, e.g. when racing
+* it against a boolean answer/reject signal.
+*/
+function isVertoByeInboundParamsGuard(value) {
+	return isObject(value) && hasProperty(value, "callID") && typeof value.callID === "string";
 }
 
 //#endregion
@@ -16529,6 +17167,48 @@ const logger$16 = getLogger();
 function resolveInviteNodeId(args) {
 	return args.isInvite && !args.reattach && !args.explicitNodeId ? "" : args.currentNodeId ?? "";
 }
+/**
+* Surface the real outcome of a `webrtc.verto` reply.
+*
+* A webrtc.verto response nests several envelopes, each keyed by a verto-style
+* string `code` ("200" ok, "400"/etc. fail) rather than a JSON-RPC `error`. An outer
+* layer reports only whether the frame was delivered; an inner layer carries the op's
+* own outcome:
+*
+*   response.result = { code:"200", result:{…} }            ← delivery acknowledgement
+*     .result       = { jsonrpc, id, result:{…} }           ← the reply payload
+*       .result     = { code:"400", message:"Bad request" } ← the actual op outcome
+*
+* A failure can appear at any layer (delivery refused, or the op itself rejected
+* deeper down), so walk every nested `.result` object and return the FIRST non-2xx
+* `code` with its message. Returns null when every `code` seen is 2xx or absent —
+* i.e. the op succeeded. This is the only way to detect that e.g. a mute/kick was
+* rejected, since the outer delivery `code` is "200" (delivered) even then.
+*
+* Pure function — exported for unit testing.
+*/
+function findNestedVertoFailure(response) {
+	let node = response;
+	while (node !== null && typeof node === "object") {
+		const obj = node;
+		const err = obj.error;
+		if (err !== null && typeof err === "object") {
+			const e = err;
+			const errCode = typeof e.code === "string" || typeof e.code === "number" ? String(e.code) : void 0;
+			if (errCode !== void 0 && !/^2\d\d$/.test(errCode)) return {
+				code: errCode,
+				message: typeof e.message === "string" ? e.message : void 0
+			};
+		}
+		const code = typeof obj.code === "string" || typeof obj.code === "number" ? String(obj.code) : void 0;
+		if (code !== void 0 && !/^2\d\d$/.test(code)) return {
+			code,
+			message: typeof obj.message === "string" ? obj.message : void 0
+		};
+		node = obj.result !== null && typeof obj.result === "object" ? obj.result : null;
+	}
+	return null;
+}
 var VertoManager = class extends Destroyable {
 	constructor(callSession) {
 		super();
@@ -16551,7 +17231,8 @@ var WebRTCVertoManager = class extends VertoManager {
 		this._signalingStatus$ = this.createReplaySubject(1);
 		this._screenShareStatus$ = this.createBehaviorSubject("none");
 		this._rtcPeerConnectionsMap = /* @__PURE__ */ new Map();
-		this._screenShareTimeoutMs = 5e4;
+		this._lastVertoPings = /* @__PURE__ */ new Map();
+		this._legErrors$ = this.createSubject();
 		this._nodeId$ = this.createBehaviorSubject(options.nodeId ?? null);
 		this.onError = options.onError;
 		this.onModifyFailed = options.onModifyFailed;
@@ -16598,6 +17279,10 @@ var WebRTCVertoManager = class extends VertoManager {
 	}
 	get selfId$() {
 		return this._selfId$.asObservable();
+	}
+	/** Separates the media phase of call creation from the signalling phase. */
+	get localMediaSettled$() {
+		return this.mainPeerConnection.localMediaSettled$;
 	}
 	get localStream() {
 		return this._rtcPeerConnectionsMap.get(this.webRtcCallSession.id)?.localStream ?? null;
@@ -16655,25 +17340,89 @@ var WebRTCVertoManager = class extends VertoManager {
 			const { mediaParams, callID } = event;
 			const rtcPeerConnController = this._rtcPeerConnectionsMap.get(callID);
 			const { audio, video } = mediaParams;
-			(async () => {
-				try {
-					if (audio && rtcPeerConnController) await rtcPeerConnController.replaceAudioTrackWithConstraints(audio);
-					if (video) await rtcPeerConnController?.updateSendersConstraints("video", video);
-					this.webRtcCallSession.emitMediaParamsUpdated({
-						audio,
-						video,
-						timestamp: Date.now()
-					});
-				} catch (error) {
-					logger$16.warn("[WebRTCManager] Error applying server-pushed media params:", error);
-					this.onError?.(error instanceof Error ? error : new Error(String(error), { cause: error }));
-				}
-			})();
+			if (!rtcPeerConnController) {
+				logger$16.warn(`[WebRTCManager] Ignoring server-pushed media params for unknown leg ${callID}`);
+				return;
+			}
+			this.applyServerMediaParams(rtcPeerConnController, audio, video);
 		});
 		this.subscribeTo(this.vertoPing$, (vertoPing) => {
-			this.attachManager.attach(this.buildAttachableCall());
+			this._lastVertoPings.set(vertoPing.callID, vertoPing);
+			this.attachManager.refresh(this.buildAttachableCall());
 			this.sendVertoPong(vertoPing);
 		});
+		this.subscribeTo(this.webRtcCallSession.clientSession.authenticated$.pipe((0, import_cjs$15.skip)(1), (0, import_cjs$15.filter)(Boolean)), () => {
+			this._lastVertoPings.forEach((vertoPing) => void this.sendVertoPong(vertoPing));
+		});
+	}
+	/**
+	* An auxiliary-leg failure must never destroy the call; main-leg and
+	* call-level errors keep `CallFactory.isFatalError`'s classification.
+	*
+	* Every site holding a peer connection reports through here, so the invariant
+	* is structural rather than per-call-site — which is how cloud-product#20523
+	* happened, with only one of fourteen sites passing `{ fatal: false }`.
+	*
+	* `override` composes rather than replaces: a caller may force non-fatal for a
+	* reason of its own (a `verto.info` frame is best-effort whichever leg carries
+	* it), and an auxiliary leg stays non-fatal regardless.
+	*/
+	reportLegError(error, rtcPeerConnController, override) {
+		const leg = rtcPeerConnController?.propose;
+		const legId = rtcPeerConnController?.id;
+		const auxiliary = Boolean(rtcPeerConnController) && !rtcPeerConnController?.isMainDevice;
+		this.onError?.(error, {
+			...override?.fatal === false || auxiliary ? { fatal: false } : {},
+			...leg ? { leg } : {},
+			...legId ? { legId } : {}
+		});
+		if (legId) this._legErrors$.next({
+			legId,
+			error
+		});
+	}
+	/**
+	* Errors reported for one leg, as a stream that fails with them.
+	*
+	* Signaling failures are reported, never thrown — so nothing that waits on a
+	* leg's progress would otherwise learn of a rejected invite. Merging this in
+	* lets the wait end with the reason the server gave.
+	*/
+	legError$(legId) {
+		return this._legErrors$.pipe((0, import_cjs$15.filter)((report) => report.legId === legId), (0, import_cjs$15.map)((report) => {
+			throw report.error;
+		}));
+	}
+	/**
+	* Audio and video are applied independently so a failure in one cannot
+	* suppress the other, and `mediaParamsUpdated` is emitted whatever happens —
+	* an application should not be starved of the params by a constraint failure.
+	*/
+	async applyServerMediaParams(rtcPeerConnController, audio, video) {
+		const failures = [];
+		let applied = true;
+		if (audio) try {
+			applied = await rtcPeerConnController.updateSendersConstraints("audio", audio) && applied;
+		} catch (error) {
+			applied = false;
+			failures.push(toError(error));
+		}
+		if (video) try {
+			applied = await rtcPeerConnController.updateSendersConstraints("video", video) && applied;
+		} catch (error) {
+			applied = false;
+			failures.push(toError(error));
+		}
+		this.webRtcCallSession.emitMediaParamsUpdated({
+			audio,
+			video,
+			timestamp: Date.now(),
+			applied
+		});
+		for (const failure of failures) {
+			logger$16.warn("[WebRTCManager] Error applying server-pushed media params:", failure);
+			this.reportLegError(failure, rtcPeerConnController, { fatal: false });
+		}
 	}
 	/**
 	* Set node_id/selfId only when the current value is null.
@@ -16682,8 +17431,8 @@ var WebRTCVertoManager = class extends VertoManager {
 	* these identifiers before the `verto.invite` RPC response (`CALL CREATED`)
 	* arrives. These methods let early events populate them eagerly so that
 	* downstream RPC calls (e.g. `call.layout.list`) don't fail with empty
-	* identifiers. `processInviteResponse()` remains the authoritative source
-	* and always overwrites unconditionally.
+	* identifiers. `processInviteResponse()` remains the authoritative source and
+	* overwrites unconditionally — for selfId, on the main leg only.
 	*/
 	setNodeIdIfNull(nodeId) {
 		if (!this._nodeId$.value && nodeId) {
@@ -16706,24 +17455,33 @@ var WebRTCVertoManager = class extends VertoManager {
 			this.onError?.(new VertoPongError(error));
 		}
 	}
+	/**
+	* @returns whether the constraints reached the media the call is sending.
+	* `false` is an outcome, not a failure: the leg may have no live sender of
+	* the kind, or carry media the SDK did not capture and may not replace.
+	* A failure behind it still reaches the call's `errors$`, so a caller that
+	* ignores this value learns of it there.
+	*/
 	async updateMediaConstraints(options = {}) {
 		const { audio, video } = options;
+		let applied = true;
 		try {
-			if (audio) await this.mainPeerConnection.updateSendersConstraints("audio", audio);
-			if (video) await this.mainPeerConnection.updateSendersConstraints("video", video);
+			if (audio) applied = await this.mainPeerConnection.updateSendersConstraints("audio", audio) && applied;
+			if (video) applied = await this.mainPeerConnection.updateSendersConstraints("video", video) && applied;
 		} catch (error) {
 			logger$16.warn("[WebRTCManager] Error updating media constraints:", error);
-			this.onError?.(error instanceof Error ? error : new Error(String(error), { cause: error }));
+			this.reportLegError(toError(error), this.mainPeerConnection);
 			throw error;
 		}
+		return applied;
 	}
 	get selfId() {
 		return this._selfId$.value;
 	}
 	/** Build an AttachableCall from the current call state. */
-	buildAttachableCall(idOverride) {
+	buildAttachableCall(idOverride, nodeIdOverride) {
 		return {
-			nodeId: this.nodeId ?? void 0,
+			nodeId: nodeIdOverride ?? this.nodeId ?? void 0,
 			id: idOverride ?? this.webRtcCallSession.id,
 			to: this.webRtcCallSession.to,
 			mediaDirections: this.webRtcCallSession.mediaDirections
@@ -16845,7 +17603,7 @@ var WebRTCVertoManager = class extends VertoManager {
 		return this.cachedObservable("vertoMediaParams$", () => this.webRtcCallSession.webrtcMessages$.pipe(filterAs(isVertoMediaParamsInnerParams, "params"), (0, import_cjs$15.takeUntil)(this.destroyed$)));
 	}
 	get vertoBye$() {
-		return this.cachedObservable("vertoBye$", () => this.webRtcCallSession.webrtcMessages$.pipe(filterAs(isVertoByeMessage, "params"), (0, import_cjs$15.takeUntil)(this.destroyed$)));
+		return this.cachedObservable("vertoBye$", () => this.webRtcCallSession.webrtcMessages$.pipe(filterAs(isVertoByeInboundMessage, "params"), (0, import_cjs$15.takeUntil)(this.destroyed$)));
 	}
 	get vertoAttach$() {
 		return this.cachedObservable("vertoAttach$", () => this.webRtcCallSession.webrtcMessages$.pipe(filterAs(isVertoAttachMessage, "params"), (0, import_cjs$15.takeUntil)(this.destroyed$)));
@@ -16853,24 +17611,49 @@ var WebRTCVertoManager = class extends VertoManager {
 	get vertoPing$() {
 		return this.cachedObservable("vertoPing$", () => this.webRtcCallSession.webrtcMessages$.pipe(filterAs(isVertoPingInnerParams, "params"), (0, import_cjs$15.takeUntil)(this.destroyed$)));
 	}
+	/**
+	* Send a member-control op in-dialog via verto.info.
+	*
+	* The control payload rides in `params.command` — a sibling of `dialogParams`,
+	* at the same level as `dtmf` in {@link sendDigits} — and the inner verto.info
+	* is matched to this call's channel by `dialogParams.callID`, the in-dialog
+	* convention for member-scoped frames. Because it is delivered on the dialog
+	* itself, control lands on the call's own channel with no {node_id,call_id,member_id}
+	* "self" tuple to get wrong. The outer webrtc.verto envelope (added by executeVerto)
+	* still carries the own-leg callID + node_id for session routing.
+	*
+	* Keep `command` OUT of `dialogParams`: it is read at the params level, and
+	* filterVertoParams rewrites/filters dialogParams keys but passes params-level
+	* keys through verbatim.
+	*/
+	async sendCallControl(method, params) {
+		const response = await this.executeVerto(VertoInfo({
+			dialogParams: { callID: this.webRtcCallSession.id },
+			command: {
+				method,
+				params
+			}
+		}));
+		const failure = findNestedVertoFailure(response);
+		if (failure) throw new JSONRPCError(Number.parseInt(failure.code, 10) || 0, `Call control "${method}" failed (code ${failure.code})${failure.message ? `: ${failure.message}` : ""}`, void 0);
+		return response;
+	}
 	async executeVerto(message, optionals = {}) {
-		const webrtcVertoMessage = WebrtcVerto({
+		const params = {
 			callID: optionals.callID ?? this.webRtcCallSession.id,
 			node_id: optionals.node_id ?? this._nodeId$.value ?? "",
 			message,
 			subscribe: optionals.subscribe
-		});
+		};
+		const webrtcVertoMessage = WebrtcVerto(params);
 		const response = await this.webRtcCallSession.execute(webrtcVertoMessage);
-		if (response.error) {
-			const error = new JSONRPCError(response.error.code, response.error.message, response.error.data);
-			this.onError?.(error);
-			return response;
-		}
+		const nonFatal = message.method === "verto.info" ? { fatal: false } : void 0;
 		const innerResult = getValueFrom(response, "result.result");
-		if (innerResult?.error) {
-			const error = new JSONRPCError(innerResult.error.code, innerResult.error.message, innerResult.error.data);
-			this.onError?.(error);
-			return response;
+		const failure = response.error ?? innerResult?.error;
+		if (failure) {
+			const error = new JSONRPCError(failure.code, failure.message, failure.data);
+			if (message.method === "verto.invite" || message.method === "verto.answer") throw error;
+			this.reportLegError(error, this._rtcPeerConnectionsMap.get(params.callID), nonFatal);
 		}
 		return response;
 	}
@@ -16889,8 +17672,9 @@ var WebRTCVertoManager = class extends VertoManager {
 				default:
 			}
 		} catch (error) {
+			if (vertoMethod === "verto.answer") throw error;
 			logger$16.error(`[WebRTCManager] Error sending Verto ${vertoMethod}:`, error);
-			this.onError?.(error instanceof Error ? error : new Error(String(error), { cause: error }));
+			this.reportLegError(toError(error), rtcPeerConnController);
 			if (vertoMethod === "verto.modify") this.onModifyFailed?.();
 		}
 	}
@@ -16906,7 +17690,7 @@ var WebRTCVertoManager = class extends VertoManager {
 			} catch (error) {
 				logger$16.warn("[WebRTCManager] Error processing modify response:", error);
 				const modifyError = error instanceof Error ? error : new Error(String(error), { cause: error });
-				this.onError?.(modifyError);
+				this.reportLegError(modifyError, rtcPeerConnController);
 			}
 		}
 	}
@@ -16919,37 +17703,35 @@ var WebRTCVertoManager = class extends VertoManager {
 				status,
 				signalingError
 			});
-			this.onError?.(signalingError);
+			this.reportLegError(signalingError, null, { fatal: false });
 			return;
 		}
 		if (rtcPeerConnController.isMainDevice) this._signalingStatus$.next(status);
 	}
 	processInviteResponse(response, rtcPeerConnController) {
-		if (!response.error && getValueFrom(response, "result.result.result.message") === "CALL CREATED") {
+		if (getValueFrom(response, "result.result.result.message") === "CALL CREATED") {
 			this.emitMainSignalingStatus(rtcPeerConnController.id, "trying");
-			this._nodeId$.next(getValueFrom(response, "result.node_id") ?? null);
+			const nodeId = getValueFrom(response, "result.node_id") ?? null;
 			const memberId = getValueFrom(response, "result.result.result.memberID") ?? null;
-			const callId = getValueFrom(response, "result.result.result.callID") ?? null;
+			const callId = getValueFrom(response, "result.result.result.callID");
 			logger$16.debug("[WebRTCManager] Verto invite response:", {
 				callId,
 				memberId,
 				response
 			});
-			this._selfId$.next(memberId);
 			rtcPeerConnController.setMemberId(memberId);
-			if (callId) {
-				this.webRtcCallSession.addCallId(callId);
-				this.attachManager.attach(this.buildAttachableCall(callId));
-			} else logger$16.warn("[WebRTCManager] Cannot attach call, missing callId:", {
-				nodeId: this.nodeId,
-				callId
-			});
+			rtcPeerConnController.setNodeId(nodeId);
+			if (rtcPeerConnController.isMainDevice) {
+				this._selfId$.next(memberId);
+				this._nodeId$.next(nodeId);
+				this.attachManager.attach(this.buildAttachableCall(callId, nodeId ?? void 0));
+			}
+			if (callId) this.webRtcCallSession.addCallId(callId);
 			logger$16.info("[WebRTCManager] Verto invite successful");
 			logger$16.debug(`[WebRTCManager] nodeid: ${this._nodeId$.value}, selfId: ${this._selfId$.value}`);
 		} else {
 			logger$16.error("[WebRTCManager] Verto invite failed:", response);
-			const inviteError = response.error ? new JSONRPCError(response.error.code, response.error.message, response.error.data) : /* @__PURE__ */ new Error("Verto invite failed: unexpected response");
-			this.onError?.(inviteError);
+			this.reportLegError(/* @__PURE__ */ new Error("Verto invite failed: unexpected response"), rtcPeerConnController);
 		}
 	}
 	get RTCPeerConnectionConfig() {
@@ -16974,6 +17756,7 @@ var WebRTCVertoManager = class extends VertoManager {
 			inputVideoStream: options.inputVideoStream,
 			receiveAudio: options.receiveAudio,
 			receiveVideo: options.receiveVideo,
+			fallbackToReceiveOnly: options.fallbackToReceiveOnly,
 			webRTCApiProvider: this.webRTCApiProvider,
 			preferredVideoCodecs: options.preferredVideoCodecs,
 			preferredAudioCodecs: options.preferredAudioCodecs,
@@ -16987,7 +17770,7 @@ var WebRTCVertoManager = class extends VertoManager {
 		this._rtcPeerConnectionsMap.set(rtcPeerConnController.id, rtcPeerConnController);
 		this._rtcPeerConnections$.next(Array.from(this._rtcPeerConnectionsMap.values()));
 		this.subscribeTo(rtcPeerConnController.errors$, (error) => {
-			this.onError?.(error);
+			this.reportLegError(error, rtcPeerConnController);
 		});
 		if (options.initOffer) this.handleInboundAnswer(rtcPeerConnController);
 	}
@@ -16998,7 +17781,7 @@ var WebRTCVertoManager = class extends VertoManager {
 			logger$16.debug("[WebRTCManager] Inbound answer handler aborted (destroyed).");
 			return;
 		}
-		if (isVertoByeMessage(vertoByeOrAccepted)) {
+		if (isVertoByeInboundParamsGuard(vertoByeOrAccepted)) {
 			logger$16.info("[WebRTCManager] Inbound call ended by remote before answer.");
 			this.callSession?.destroy();
 		} else if (!vertoByeOrAccepted) {
@@ -17016,7 +17799,7 @@ var WebRTCVertoManager = class extends VertoManager {
 				await rtcPeerConnController.acceptInbound(answerOptions);
 			} catch (error) {
 				logger$16.error("[WebRTCManager] Error creating inbound answer:", error);
-				this.onError?.(error instanceof Error ? error : new Error(String(error), { cause: error }));
+				this.reportLegError(toError(error), rtcPeerConnController);
 			}
 		}
 	}
@@ -17088,7 +17871,7 @@ var WebRTCVertoManager = class extends VertoManager {
 				isInvite: isVertoInviteMessage(vertoMessage),
 				reattach: this.webRtcCallSession.options.reattach === true,
 				explicitNodeId: this.webRtcCallSession.options.nodeId,
-				currentNodeId: this._nodeId$.value
+				currentNodeId: rtcPeerConnController.nodeId ?? this._nodeId$.value
 			}),
 			subscribe
 		};
@@ -17100,7 +17883,7 @@ var WebRTCVertoManager = class extends VertoManager {
 			logger$16.debug("[WebRTCManager] Destroyed while waiting for call acceptance");
 			return;
 		}
-		if (isVertoByeMessage(vertoByeOrAccepted)) {
+		if (isVertoByeInboundParamsGuard(vertoByeOrAccepted)) {
 			logger$16.info("[WebRTCManager] Call ended before answer was sent.");
 			this.callSession?.destroy();
 		} else if (!vertoByeOrAccepted) {
@@ -17120,7 +17903,7 @@ var WebRTCVertoManager = class extends VertoManager {
 				await this.attachManager.attach(this.buildAttachableCall());
 			} catch (error) {
 				logger$16.error("[WebRTCManager] Error sending Verto answer:", error);
-				this.onError?.(error instanceof Error ? error : new Error(String(error), { cause: error }));
+				this.reportLegError(toError(error), rtcPeerConnectionController);
 				await rtcPeerConnectionController.updateAnswerStatus({ status: "failed" });
 			}
 		}
@@ -17192,17 +17975,23 @@ var WebRTCVertoManager = class extends VertoManager {
 			await this.mainPeerConnection.restoreTrackSender(deviceKind);
 		} else {
 			const error = new InvalidParams("No valid device to be added");
-			this.onError?.(error);
+			this.reportLegError(error, this.mainPeerConnection);
 			throw error;
 		}
 	}
-	async addScreenMedia(options = { audio: false }) {
-		await this.initAdditionalPeerConnection("screenshare", options);
+	async addScreenMedia(options = {}) {
+		await this.initAdditionalPeerConnection("screenshare", {
+			audio: false,
+			screenShareAudio: options.audio ?? false
+		});
 	}
 	async initAdditionalPeerConnection(propose, options) {
+		const isScreenShare = propose === "screenshare";
+		if (isScreenShare && this._screenShareId && this._rtcPeerConnectionsMap.has(this._screenShareId)) throw new ScreenShareAlreadyActiveError(this._screenShareId);
+		let firstPeerConnectionError;
 		let rtcPeerConnController = null;
 		try {
-			this._screenShareStatus$.next("starting");
+			if (isScreenShare) this._screenShareStatus$.next("starting");
 			rtcPeerConnController = new RTCPeerConnectionController({
 				...options,
 				...this.RTCPeerConnectionConfig,
@@ -17210,21 +17999,42 @@ var WebRTCVertoManager = class extends VertoManager {
 				webRTCApiProvider: this.webRTCApiProvider
 			}, void 0, this.deviceController);
 			this.setupLocalDescriptionHandler(rtcPeerConnController);
-			if (propose === "screenshare") this._screenShareId = rtcPeerConnController.id;
+			if (isScreenShare) this._screenShareId = rtcPeerConnController.id;
 			this._rtcPeerConnectionsMap.set(rtcPeerConnController.id, rtcPeerConnController);
 			this._rtcPeerConnections$.next(Array.from(this._rtcPeerConnectionsMap.values()));
 			this.subscribeTo(rtcPeerConnController.errors$, (error) => {
-				this.onError?.(error);
+				firstPeerConnectionError ??= error;
+				this.reportLegError(error, rtcPeerConnController);
 			});
-			await (0, import_cjs$15.firstValueFrom)(rtcPeerConnController.connectionState$.pipe((0, import_cjs$15.filter)((state) => state === "connected"), (0, import_cjs$15.take)(1), (0, import_cjs$15.timeout)(this._screenShareTimeoutMs), (0, import_cjs$15.takeUntil)(this.destroyed$)));
-			this._screenShareStatus$.next("started");
-			logger$16.info("[WebRTCManager] Screen share started successfully.");
+			const pc = rtcPeerConnController;
+			await (0, import_cjs$15.firstValueFrom)((0, import_cjs$15.merge)(pc.localMediaSettled$.pipe((0, import_cjs$15.take)(1), (0, import_cjs$15.switchMap)(() => pc.connectionState$.pipe((0, import_cjs$15.filter)((state) => state === "connected"), (0, import_cjs$15.take)(1), (0, import_cjs$15.timeout)(DEFAULT_AUX_LEG_CONNECT_TIMEOUT_MS)))), this.legError$(pc.id)).pipe((0, import_cjs$15.takeUntil)((0, import_cjs$15.merge)(this.destroyed$, pc.destroyed$))));
+			if (isScreenShare) this._screenShareStatus$.next("started");
+			logger$16.info(`[WebRTCManager] Additional peer connection connected (${propose}).`);
 			return rtcPeerConnController.id;
 		} catch (error) {
-			logger$16.warn("[WebRTCManager] Error initializing additional peer connection:", error);
-			this.onError?.(error instanceof Error ? error : new Error(String(error), { cause: error }));
-			if (rtcPeerConnController) rtcPeerConnController.destroy();
-			this._screenShareStatus$.next("none");
+			const cancelled = error instanceof AuxiliaryLegCancelledError;
+			const aborted = error instanceof import_cjs$15.EmptyError && !firstPeerConnectionError;
+			if (!cancelled && !aborted) logger$16.warn("[WebRTCManager] Error initializing additional peer connection:", error);
+			if (rtcPeerConnController && this._rtcPeerConnectionsMap.has(rtcPeerConnController.id)) {
+				rtcPeerConnController.destroy();
+				this._rtcPeerConnectionsMap.delete(rtcPeerConnController.id);
+				this._rtcPeerConnections$.next(Array.from(this._rtcPeerConnectionsMap.values()));
+			}
+			if (isScreenShare) {
+				this._screenShareId = void 0;
+				this._screenShareStatus$.next("none");
+			}
+			if (cancelled) {
+				logger$16.debug("[WebRTCManager] Additional peer connection removed before connecting.");
+				throw error;
+			}
+			if (firstPeerConnectionError) throw firstPeerConnectionError instanceof MediaAccessError && firstPeerConnectionError.originalError instanceof Error ? firstPeerConnectionError.originalError : firstPeerConnectionError;
+			if (error instanceof import_cjs$15.EmptyError) {
+				logger$16.debug("[WebRTCManager] Additional peer connection aborted before connecting.");
+				return;
+			}
+			if (error instanceof import_cjs$15.TimeoutError) throw new AuxiliaryLegTimeoutError(propose, error);
+			throw error instanceof Error ? error : new Error(String(error), { cause: error });
 		}
 	}
 	async removeInputDevices(id) {
@@ -17240,7 +18050,10 @@ var WebRTCVertoManager = class extends VertoManager {
 		if (removeTrack) return this.mainPeerConnection.stopTrackSender(removeTrack, { updateTransceiverDirection: true });
 	}
 	async removeScreenMedia() {
-		if (!["starting", "started"].includes(this._screenShareStatus$.value)) logger$16.warn("[WebRTCManager] No active screen share to stop.");
+		if (!["starting", "started"].includes(this._screenShareStatus$.value)) {
+			logger$16.warn("[WebRTCManager] No active screen share to stop.");
+			return;
+		}
 		if (!this._screenShareId) {
 			logger$16.debug("[WebRTCManager] No screen share peer connection found.");
 			return;
@@ -17255,6 +18068,10 @@ var WebRTCVertoManager = class extends VertoManager {
 		try {
 			if (rtcPeerConnController) await this.executeVertoBye(rtcPeerConnController);
 		} finally {
+			if (rtcPeerConnController && rtcPeerConnController.connectionState !== "connected") this._legErrors$.next({
+				legId: id,
+				error: new AuxiliaryLegCancelledError(rtcPeerConnController.propose)
+			});
 			rtcPeerConnController?.destroy();
 			this._rtcPeerConnectionsMap.delete(id);
 			this._rtcPeerConnections$.next(Array.from(this._rtcPeerConnectionsMap.values()));
@@ -17269,7 +18086,10 @@ var WebRTCVertoManager = class extends VertoManager {
 			await this.executeVerto(VertoBye({
 				...causeParams,
 				dialogParams: this.dialogParams(rtcPeerConnController)
-			}));
+			}), {
+				callID: rtcPeerConnController.id,
+				node_id: rtcPeerConnController.nodeId ?? void 0
+			});
 		} catch (error) {
 			logger$16.warn("[WebRTCManager] Call might already be disconnected, error sending Verto bye:", error);
 			throw error;
@@ -18149,6 +18969,33 @@ function mosToQualityLevel(mos) {
 }
 
 //#endregion
+//#region src/utils/unwrapVertoReply.ts
+/**
+* Unwrap a method's own reply from a `webrtc.verto` envelope.
+*
+* A control verb sent in-dialog comes back nested two levels deep:
+*
+* ```
+* { result: { node_id, code, result: { jsonrpc, id, result: <method payload> } } }
+* ```
+*
+* whereas the routed transport resolves the method payload directly under
+* `.result`. Readers want the latter shape, and the difference is silent when it
+* is wrong — `response.result.layouts` simply evaluates to `undefined` against the
+* envelope, so the data arrives, nothing throws, and the caller sees an empty
+* value. That exact failure produced an empty layout dropdown with a successful
+* request behind it.
+*
+* Accepting both shapes here keeps every reader indifferent to which transport
+* produced the response. Anything that is not a nested envelope (a plain ack, or
+* an already-unwrapped reply) passes through untouched.
+*/
+function unwrapVertoReply(response) {
+	const inner = getValueFrom(response, "result.result");
+	return inner && typeof inner === "object" && "result" in inner ? inner : response;
+}
+
+//#endregion
 //#region src/core/entities/Call.ts
 var import_cjs$11 = require_cjs();
 const logger$12 = getLogger();
@@ -18247,8 +19094,11 @@ var WebRTCCall = class extends Destroyable {
 	emitError(callError) {
 		if (this._status$.value === "destroyed" || this._status$.value === "failed") return;
 		this._errors$.next(callError);
-		if (callError.fatal) {
+		if (callError.fatal && this._status$.value !== "disconnecting") {
 			this._status$.next("failed");
+			this.vertoManager.bye().catch((error) => {
+				logger$12.debug("[Call] fatal-teardown bye failed (signaling likely already dead):", error);
+			});
 			this.destroy();
 		}
 	}
@@ -18303,7 +19153,7 @@ var WebRTCCall = class extends Destroyable {
 	/** Toggles the call lock state, preventing or allowing new participants from joining. */
 	async toggleLock() {
 		const method = this.locked ? "call.unlock" : "call.lock";
-		await this.executeMethod(this.selfId ?? "", method, {});
+		await this.executeMethod(this.callSelf, method, {});
 	}
 	/**
 	* Toggles the hold state of the call (pauses/resumes local media transmission).
@@ -18352,14 +19202,25 @@ var WebRTCCall = class extends Destroyable {
 	*
 	* Constructs call context (node_id, call_id, member_id) and sends the RPC request.
 	*
-	* @param target - Target member ID string, or a {@link MemberTarget} object.
+	* @param target - Target {@link MemberTarget} triple, or the local member's
+	*   ID string for self-operations (any other string is rejected — a bare
+	*   member id cannot carry the remote member's own call context).
 	* @param method - Verto method name (e.g. `'call.mute'`, `'call.member.remove'`).
 	* @param args - Parameters for the RPC method.
 	* @returns The RPC response.
+	* @throws {CallNotReadyError} If the call has no self member context yet.
+	* @throws {InvalidParams} If a string target is not the local member's ID.
 	* @throws {JSONRPCError} If the RPC call returns an error.
 	*/
 	async executeMethod(target, method, args) {
-		const params = this.buildMethodParams(target, args);
+		const self = this.callSelf;
+		if (typeof target === "string" && target !== self.member_id) throw new InvalidParams(`Target member ID ${target} does not match call's self member ID ${self.member_id}`);
+		if (this.clientSession.callControl === "in-dialog") return this.executeMethodInDialog(target, method, args);
+		const params = {
+			...args,
+			self,
+			target: typeof target === "string" ? self : target
+		};
 		const request = buildRPCRequest({
 			method,
 			params
@@ -18373,25 +19234,98 @@ var WebRTCCall = class extends Destroyable {
 			throw error;
 		}
 	}
-	buildMethodParams(target, args) {
-		const self = {
-			node_id: this.nodeId ?? "",
-			call_id: this.id,
-			member_id: this.vertoManager.selfId ?? ""
-		};
-		if (typeof target === "object") return {
-			...args,
-			self,
-			targets: [target]
-		};
-		return {
-			...args,
-			self,
-			target: {
-				node_id: this.nodeId ?? "",
+	/**
+	* `executeMethod` for a call opened with `callControl: 'in-dialog'`.
+	*
+	* Translates the routed transport's calling convention into the in-dialog one. No
+	* `self` tuple is sent, but a `target` is — the same {call_id, member_id} the routed
+	* transport puts in `target` (minus node_id), for self-ops and cross-member ops alike.
+	*
+	* Target shapes are per-verb and irregular, so they are centralised here rather
+	* than left to callers: most verbs take a singular `target`, `call.member.remove`
+	* takes a plural `targets` array, and `call.member.position.set` takes a flat
+	* `targets` of `{call_id, position}` — the one verb keyed on call_id rather than
+	* member_id, so the member triple `Participant.setPosition` built is unwrapped.
+	*/
+	async executeMethodInDialog(target, method, args) {
+		const control = { ...args };
+		if (method === "call.member.position.set") control.targets = (args.targets ?? []).map((entry) => ({
+			call_id: entry.target?.call_id ?? entry.call_id,
+			position: entry.position
+		}));
+		else {
+			const member = typeof target === "object" ? {
+				call_id: target.call_id,
+				member_id: target.member_id
+			} : {
 				call_id: this.id,
 				member_id: target
-			}
+			};
+			if (method === "call.member.remove") control.targets = [member];
+			else control.target = member;
+		}
+		return this.sendCommand(method, control);
+	}
+	/**
+	* Sends a `call.*` control verb **in-dialog** via `verto.info`, as an alternative
+	* to the routed {@link executeMethod} transport.
+	*
+	* Why both exist: `executeMethod` addresses the member with an explicit
+	* `{node_id, call_id, member_id}` tuple, which does not resolve for every conference,
+	* so the op can fail. An in-dialog frame carries the verb on the member's own
+	* signaling channel instead, so control works without the client needing to know how
+	* the conference is hosted.
+	*
+	* The trade-off is reach: the in-dialog transport is only accepted for calls that
+	* join a conference over SWML (e.g. an SWML `join_conference`); use the routed
+	* default otherwise.
+	*
+	* `params` are sent verbatim — nothing is built for you, which includes the target.
+	* **A self-directed op still needs one**, or it is refused; name yourself explicitly:
+	*
+	* ```ts
+	* const { call_id, member_id } = call.self.target;
+	* await call.sendCommand('call.mute', { channels: ['audio'], target: { call_id, member_id } });
+	* ```
+	*
+	* Never include `node_id` — only the two ids. The shapes are per-verb: most take a
+	* singular `target`, `call.member.remove` takes a plural `targets` array, and
+	* `call.member.position.set` takes a flat `targets: [{call_id, position}]` (the one
+	* verb keyed on `call_id` rather than `member_id`). Verbs that act on the call as a
+	* whole, or that the SDK does not wrap at all, take no target.
+	*
+	* For the typed alternative that handles all of this, create the client with
+	* `callControl: 'in-dialog'` and use the ordinary `Call`/`Participant` methods.
+	*
+	* @internal Not part of the supported surface while the in-dialog transport is still
+	* rolling out. `WebRTCCall` is exported from the package entry, so without this tag
+	* TypeDoc publishes the method — and the example above — as public API.
+	*
+	* @param method - A `call.*` method name (e.g. `'call.mute'`).
+	* @param params - Method parameters, sent verbatim.
+	* @returns The method's own reply, unwrapped from the `verto.info` envelope.
+	* @throws {JSONRPCError} If the control op fails.
+	*/
+	async sendCommand(method, params = {}) {
+		return unwrapVertoReply(await this.vertoManager.sendCallControl(method, params));
+	}
+	/**
+	* The local leg's member triple — sent as `self` in every member RPC
+	* envelope, and as the `target` of call-scoped self-operations (e.g. lock,
+	* layout).
+	*
+	* @throws {CallNotReadyError} Before `call.joined` delivers the self member
+	* context (`selfId`/`nodeId`) — an RPC without it cannot be routed, so fail
+	* fast instead of sending a doomed request.
+	*/
+	get callSelf() {
+		const node_id = this.nodeId;
+		const member_id = this.vertoManager.selfId;
+		if (!node_id || !member_id) throw new CallNotReadyError(this.id);
+		return {
+			node_id,
+			call_id: this.id,
+			member_id
 		};
 	}
 	/** Observable of the current call status (e.g. `'ringing'`, `'connected'`). */
@@ -18547,13 +19481,13 @@ var WebRTCCall = class extends Destroyable {
 	get bandwidthConstrained$() {
 		return this.deferEmission(this._bandwidthConstrained$.asObservable());
 	}
-	/** Observable that emits when server-pushed media params are applied. */
+	/** Observable that emits when the server pushes media params. */
 	get mediaParamsUpdated$() {
 		return this.deferEmission(this._mediaParamsUpdated$.asObservable());
 	}
 	/**
 	* @internal Emit a media params update event.
-	* Called by the VertoManager when server-pushed media params are applied.
+	* Called by the VertoManager when the server pushes media params.
 	*/
 	emitMediaParamsUpdated(event) {
 		this._mediaParamsUpdated$.next(event);
@@ -18761,6 +19695,10 @@ var WebRTCCall = class extends Destroyable {
 	get selfId$() {
 		return this.vertoManager.selfId$;
 	}
+	/** @internal Lets call creation bound the media and signalling phases apart. */
+	get localMediaSettled$() {
+		return this.vertoManager.localMediaSettled$;
+	}
 	/** Local participant's member ID, or `null` if not joined. */
 	get selfId() {
 		return this.vertoManager.selfId;
@@ -18944,11 +19882,27 @@ var WebRTCCall = class extends Destroyable {
 		return this.deferEmission(this._answered$.asObservable());
 	}
 	/**
-	* Sets the call layout and participant positions.
+	* Sets the call layout and, optionally, individual participant positions.
+	*
+	* The gateway `call.layout.set` DTO has **no** `positions` member, so when
+	* `positions` is provided this method issues a `call.member.position.set`
+	* request per member (via {@link Participant.setPosition}, which keys each
+	* position by that member's own call context) alongside `call.layout.set`
+	* (issue #19400, Flag #6).
+	*
+	* **These operations are NOT atomic.** The layout is applied first, then each
+	* member position sequentially, so members may briefly flash into their
+	* default slots before being moved to the requested positions. Targeted
+	* members are validated upfront, though: when any of them has no
+	* {@link Participant.target | member call context} yet, the whole call
+	* rejects before any request is sent and the layout is left unchanged.
 	*
 	* @param layout - Layout name (must be one of {@link layouts}).
-	* @param positions - Map of member IDs to {@link VideoPosition} values.
+	* @param positions - Optional map of member IDs to {@link VideoPosition} values.
+	*   When omitted or empty, only the layout is changed.
 	* @throws {InvalidParams} If the layout is not in the available {@link layouts}.
+	* @throws {ParticipantNotReadyError} If a targeted member's call context has
+	*   not been received yet — thrown before any request is sent.
 	*
 	* @example
 	* ```ts
@@ -18959,11 +19913,19 @@ var WebRTCCall = class extends Destroyable {
 	*/
 	async setLayout(layout, positions) {
 		if (!this.layouts.includes(layout)) throw new InvalidParams(`Layout ${layout} is not available in the current call layouts: ${this.layouts.join(", ")}`);
+		const targets = [];
+		for (const [memberId, position] of Object.entries(positions ?? {})) {
+			const participant = this.participants.find((p) => p.id === memberId);
+			if (!participant) {
+				logger$12.warn(`[Call] setLayout: member ${memberId} not found in participants; skipping position ${position}`);
+				continue;
+			}
+			participant.target;
+			targets.push([participant, position]);
+		}
 		const selfId = await (0, import_cjs$11.firstValueFrom)(this.selfId$.pipe((0, import_cjs$11.filter)((id) => id !== null)));
-		await this.executeMethod(selfId, "call.layout.set", {
-			layout,
-			positions
-		});
+		await this.executeMethod(selfId, "call.layout.set", { layout });
+		for (const [participant, position] of targets) await participant.setPosition(position);
 	}
 	/**
 	* Transfers the call to another destination.
@@ -19065,17 +20027,28 @@ var WebRTCCall = class extends Destroyable {
 	* (notably iOS Safari) fall back to re-acquiring the track with the new
 	* constraint set and plumbing the replacement through the local audio
 	* pipeline if one is active.
+	*
+	* @returns whether the constraint reached the microphone. `false` is an
+	* outcome rather than an error — a leg sending media the SDK did not capture
+	* is left alone — so a UI that reflects the toggle must read it. Any failure
+	* behind a `false` is also reported on {@link errors$}.
 	*/
 	async setEchoCancellation(enabled) {
-		await this.vertoManager.updateMediaConstraints({ audio: { echoCancellation: enabled } });
+		return this.vertoManager.updateMediaConstraints({ audio: { echoCancellation: enabled } });
 	}
-	/** Toggle browser noise suppression on the local mic at runtime. */
+	/**
+	* Toggle browser noise suppression on the local mic at runtime.
+	* @returns whether the constraint reached the microphone.
+	*/
 	async setNoiseSuppression(enabled) {
-		await this.vertoManager.updateMediaConstraints({ audio: { noiseSuppression: enabled } });
+		return this.vertoManager.updateMediaConstraints({ audio: { noiseSuppression: enabled } });
 	}
-	/** Toggle browser automatic gain control on the local mic at runtime. */
+	/**
+	* Toggle browser automatic gain control on the local mic at runtime.
+	* @returns whether the constraint reached the microphone.
+	*/
 	async setAutoGainControl(enabled) {
-		await this.vertoManager.updateMediaConstraints({ audio: { autoGainControl: enabled } });
+		return this.vertoManager.updateMediaConstraints({ audio: { autoGainControl: enabled } });
 	}
 	/**
 	* Observable of the aggregate remote audio level, 0..1 RMS. The server
@@ -19132,11 +20105,15 @@ var WebRTCCall = class extends Destroyable {
 /**
 * Infers the semantic error category from a raw Error thrown by VertoManager
 * or an RTCPeerConnection layer.
+*
+* Pure function — exported for unit testing.
+* @internal
 */
 function inferCallErrorKind(error) {
 	if (error instanceof RPCTimeoutError) return "timeout";
 	if (error instanceof JSONRPCError) return "signaling";
 	if (error instanceof MediaTrackError) return "media";
+	if (error instanceof MediaAccessError) return "media";
 	if (error instanceof WebSocketConnectionError || error instanceof TransportConnectionError) return "network";
 	return "internal";
 }
@@ -19149,10 +20126,18 @@ const RECOVERABLE_RPC_CODES = new Set([
 	RPC_ERROR_AUTHENTICATION_FAILED,
 	RPC_ERROR_INVALID_PARAMS
 ]);
-/** Determines whether an error should be fatal (destroy the call). */
+/**
+* A *fallback*: callers knowing which leg failed pass an explicit `fatal` and
+* never reach here, so the default-fatal branch only sees call- and main-leg
+* errors. Auxiliary legs go through `WebRTCVertoManager.reportLegError`.
+*
+* Pure function — exported for unit testing.
+* @internal
+*/
 function isFatalError(error) {
 	if (error instanceof VertoPongError) return false;
 	if (error instanceof MediaTrackError) return false;
+	if (error instanceof MediaAccessError) return error.fatal;
 	if (error instanceof RPCTimeoutError) return false;
 	if (error instanceof JSONRPCError && RECOVERABLE_RPC_CODES.has(error.code)) return false;
 	return true;
@@ -19178,12 +20163,14 @@ var CallFactory = class {
 				return {
 					vertoManager: new WebRTCVertoManager(callInstance, this.attachManager, this.deviceController, this.webRTCApiProvider, {
 						nodeId: options.nodeId,
-						onError: (error) => {
+						onError: (error, options$1) => {
 							const callError = {
 								kind: inferCallErrorKind(error),
-								fatal: isFatalError(error),
+								fatal: options$1?.fatal ?? isFatalError(error),
 								error,
-								callId: callInstance.id
+								callId: callInstance.id,
+								...options$1?.leg ? { leg: options$1.leg } : {},
+								...options$1?.legId ? { legId: options$1.legId } : {}
 							};
 							callInstance.emitError(callError);
 						},
@@ -19644,6 +20631,41 @@ var PendingRPC = class PendingRPC {
 //#region src/managers/ClientSessionManager.ts
 var import_cjs$7 = require_cjs();
 const logger$9 = getLogger();
+/**
+* Decide whether an error emitted on `call.errors$` during dial should
+* abort the dial. A non-fatal MediaAccessError means the call degraded to
+* receive-only and still connects — everything else rejects `dial()` with
+* the real cause.
+*
+* Pure function — exported for unit testing.
+*/
+function shouldAbortDial(callError) {
+	return callError.fatal || !(callError.error instanceof MediaAccessError);
+}
+/**
+* Wait for a dialed call to be ready, or for the failure that stops it.
+*
+* Local media acquisition is deliberately unbounded: a permission prompt or a
+* device picker is human time, and `getUserMedia` cannot be cancelled anyway.
+* The clock starts only once acquisition settles, so a slow human never spends
+* the server's budget.
+*
+* `merge` rather than `race`, because the two legs settle asymmetrically. A
+* fatal acquisition failure reports the error and then destroys the call in the
+* same synchronous step; `errors$` defers delivery by a microtask while
+* `localMediaSettled$` completes immediately. Under `race` that bare completion
+* ended the wait first and `dial()` rejected with an RxJS `EmptyError`, burying
+* the `NotAllowedError` applications are told to inspect. Under `merge` the
+* completed leg is simply spent, and the queued error — enqueued before the
+* completion, so delivered before it — arrives to reject the wait. A dial
+* abandoned with no error at all still ends both legs, and the resulting
+* `EmptyError` remains the benign-cancel signal.
+*
+* Exported for unit testing.
+*/
+async function awaitDialReady(session, signalingTimeoutMs) {
+	return (0, import_cjs$7.firstValueFrom)((0, import_cjs$7.merge)(session.localMediaSettled$.pipe((0, import_cjs$7.take)(1), (0, import_cjs$7.switchMap)(() => session.selfId$.pipe((0, import_cjs$7.filter)((id) => Boolean(id)), (0, import_cjs$7.take)(1), (0, import_cjs$7.timeout)(signalingTimeoutMs)))), session.errors$.pipe((0, import_cjs$7.filter)(shouldAbortDial), (0, import_cjs$7.take)(1), (0, import_cjs$7.switchMap)((callError) => (0, import_cjs$7.throwError)(() => callError.error)))));
+}
 const getAddressSearchURI = (options) => {
 	const to = options.to?.split("?")[0];
 	const from$9 = options.from?.startsWith("subscriber://") ? options.from.replace("subscriber://", "") : options.from;
@@ -19660,7 +20682,6 @@ var ClientSessionManager = class extends Destroyable {
 		this.authorizationStateKey = authorizationStateKey;
 		this.attachManager = attachManager;
 		this.dpopManager = dpopManager;
-		this.callCreateTimeout = 6e3;
 		this.agent = `signalwire-js/4.0.0`;
 		this.eventAcks = true;
 		this.authorizationState$ = this.createReplaySubject(1);
@@ -19669,10 +20690,13 @@ var ClientSessionManager = class extends Destroyable {
 			minor: 0,
 			revision: 0
 		};
+		this.callControl = "routed";
 		this._authorization$ = this.createBehaviorSubject(void 0);
 		this._errors$ = this.createReplaySubject(1);
 		this._authState$ = this.createBehaviorSubject({ kind: "unauthenticated" });
 		this._wasClientBound = false;
+		this._lastFreshConnectReminted = false;
+		this._remintBeforeNextFreshConnect = false;
 		this._userInfo$ = this.createBehaviorSubject(null);
 		this._calls$ = this.createBehaviorSubject({});
 		this._iceServers$ = this.createBehaviorSubject([]);
@@ -19868,24 +20892,80 @@ var ClientSessionManager = class extends Destroyable {
 		await (0, import_cjs$7.firstValueFrom)(this.authenticated$.pipe((0, import_cjs$7.takeUntil)(this.destroyed$), (0, import_cjs$7.filter)(Boolean), (0, import_cjs$7.take)(1), (0, import_cjs$7.timeout)({ first: 15e3 })));
 	}
 	async handleAuthenticationError(error) {
+		if (error instanceof TransportConnectionError) {
+			logger$9.debug("[Session] Socket closed during authentication, waiting for reconnect");
+			return;
+		}
 		logger$9.error("Authentication error:", error);
-		const isRecoverableAuthError = error instanceof JSONRPCError && (error.code === RPC_ERROR_REQUESTER_VALIDATION_FAILED || error.code === RPC_ERROR_INVALID_PARAMS || error.code === RPC_ERROR_AUTHENTICATION_FAILED);
+		const isRecoverableAuthError$1 = error instanceof JSONRPCError && (error.code === RPC_ERROR_REQUESTER_VALIDATION_FAILED || error.code === RPC_ERROR_INVALID_PARAMS || error.code === RPC_ERROR_AUTHENTICATION_FAILED);
 		const hasStoredState = await (0, import_cjs$7.firstValueFrom)(this.authorizationState$.pipe((0, import_cjs$7.take)(1))) !== void 0;
-		if (isRecoverableAuthError && hasStoredState) {
+		if (isRecoverableAuthError$1 && hasStoredState) {
 			logger$9.debug("[Session] Recoverable auth error — cleaning up stored state and reconnecting fresh");
-			try {
-				await this.cleanupStoredConnectionParams();
-			} catch (cleanupError) {
-				logger$9.error("Failed to cleanup stored connection params:", cleanupError);
-			} finally {
-				this.transport.reconnect();
+			await this.discardResumeStateAndReconnect();
+		} else if (isRecoverableAuthError$1 && this.onBeforeReconnect && !this._lastFreshConnectReminted) {
+			logger$9.debug("[Session] Fresh connect refused — re-minting the credential and retrying once");
+			this._remintBeforeNextFreshConnect = true;
+			this.transport.reconnect();
+		} else {
+			this._errors$.next(error);
+			if (isRecoverableAuthError$1) {
+				this.transport.disconnect();
+				this.onAuthenticationRejected?.();
 			}
-		} else this._errors$.next(error);
+		}
+	}
+	/**
+	* Clear the resume state (authorization_state + protocol) and ask the
+	* transport to reconnect. The `connected` event re-triggers
+	* `authenticate()`, which now has no stored state and so performs a fresh
+	* connect.
+	*
+	* This is the stale-auth-state recovery helper used by handleAuthError:
+	* the server rejected a reconnect, so the resume state is discarded and a
+	* fresh connect follows. Attach records are deliberately preserved — the
+	* session lives on through the reconnect and reattachCalls() needs the
+	* stored call references afterwards. Do NOT add detachAll() here.
+	*
+	* Connect-time recovery only. A *request* refused on an already
+	* authenticated session is never healed here: dropping the resume state
+	* destroys the association between the socket and the previous session,
+	* which is what reattach depends on. That path mints a fresh credential and
+	* reauthenticates instead (see `SignalWire.recoverAndRetry`).
+	*
+	* For public teardown (disconnect/destroy), use {@link teardownSessionState}
+	* instead, which clears the attach records as well.
+	*/
+	async discardResumeStateAndReconnect() {
+		try {
+			await this.cleanupStoredConnectionParams();
+		} catch (cleanupError) {
+			logger$9.error("Failed to cleanup stored connection params:", cleanupError);
+		} finally {
+			this.transport.reconnect();
+		}
 	}
 	async cleanupStoredConnectionParams() {
 		await this.transport.setProtocol(void 0);
 		await this.updateAuthorizationStateInStorage(void 0);
 		this._authorization$.next(void 0);
+	}
+	/**
+	* Public-teardown helper for disconnect()/destroy(). Clears the resume
+	* state (authorization_state + protocol) AND the attach records as one
+	* atomic unit.
+	*
+	* The two stores are coupled: the backend only honors attach records
+	* within the session identified by the resume state, so ending the
+	* session must clear both. Clearing one without the other strands records
+	* no future session can honor (disconnect) or revives a session the
+	* developer explicitly ended (destroy).
+	*
+	* Distinct from {@link cleanupStoredConnectionParams}, which keeps the
+	* attach records for the stale-auth-state recovery path.
+	*/
+	async teardownSessionState() {
+		await this.cleanupStoredConnectionParams();
+		await this.attachManager.detachAll();
 	}
 	async updateAuthState(authorization_state) {
 		try {
@@ -19924,6 +21004,7 @@ var ClientSessionManager = class extends Destroyable {
 	}
 	async authenticate() {
 		logger$9.debug("[Session] Starting authentication process");
+		this._lastFreshConnectReminted = false;
 		const persistedParams = await (0, import_cjs$7.firstValueFrom)((0, import_cjs$7.combineLatest)({
 			protocol: this.transport.protocol$,
 			authorization_state: this.authorizationState$
@@ -19937,11 +21018,18 @@ var ClientSessionManager = class extends Destroyable {
 		const isReconnect = hasReconnectState && storedToken;
 		let dpopToken;
 		if (isReconnect) logger$9.debug("[Session] Reconnecting with stored jwt_token + authorization_state");
-		else if (this.onBeforeReconnect && this.clientBound) {
-			logger$9.debug("[Session] Refreshing credentials before fresh connect");
-			await this.onBeforeReconnect();
+		else {
+			const credential = this.getCredential();
+			const credentialExpired = credential.expiry_at !== void 0 && credential.expiry_at <= Date.now() + CREDENTIAL_EXPIRY_SKEW_MS;
+			const remint = this.clientBound || credentialExpired || this._remintBeforeNextFreshConnect;
+			this._remintBeforeNextFreshConnect = false;
+			if (this.onBeforeReconnect && remint) {
+				logger$9.debug("[Session] Refreshing credentials before fresh connect");
+				this._lastFreshConnectReminted = true;
+				await this.onBeforeReconnect();
+			}
 		}
-		if ((!isReconnect || this.clientBound) && this.dpopManager?.initialized) try {
+		if (this.dpopManager?.initialized) try {
 			dpopToken = await this.dpopManager.createRpcProof({ method: "signalwire.connect" });
 		} catch (error) {
 			if (this.clientBound) throw error;
@@ -19961,7 +21049,9 @@ var ClientSessionManager = class extends Destroyable {
 				protocol: persistedParams.protocol
 			} : {}
 		});
-		const response = await (0, import_cjs$7.lastValueFrom)((0, import_cjs$7.from)(this.transport.execute(rpcConnectRequest)).pipe(throwOnRPCError(), (0, import_cjs$7.map)((res) => res.result), (0, import_cjs$7.filter)(isRPCConnectResult), (0, import_cjs$7.tap)(() => {
+		if (this.transport.connectionStatus !== "connected") throw new TransportConnectionError("WebSocket closed during authentication");
+		const socketClosed$ = this.transport.connectionStatus$.pipe((0, import_cjs$7.skip)(1), (0, import_cjs$7.filter)((status) => status === "reconnecting" || status === "disconnected"), (0, import_cjs$7.take)(1), (0, import_cjs$7.switchMap)(() => (0, import_cjs$7.throwError)(() => new TransportConnectionError("WebSocket closed during authentication"))));
+		const response = await (0, import_cjs$7.lastValueFrom)((0, import_cjs$7.race)((0, import_cjs$7.from)(this.transport.execute(rpcConnectRequest)), socketClosed$).pipe(throwOnRPCError(), (0, import_cjs$7.map)((res) => res.result), (0, import_cjs$7.filter)(isRPCConnectResult), (0, import_cjs$7.tap)(() => {
 			logger$9.debug("[Session] Response passed filter, processing authentication result");
 		}), (0, import_cjs$7.take)(1), (0, import_cjs$7.catchError)((err) => {
 			logger$9.error("[Session] Authentication RPC failed:", err);
@@ -19974,14 +21064,16 @@ var ClientSessionManager = class extends Destroyable {
 		});
 		if (response.protocol) await this.transport.setProtocol(response.protocol);
 		this._authorization$.next(response.authorization);
+		if (response.authorization.cnf?.jkt) this._wasClientBound = true;
 		this._iceServers$.next(response.ice_servers ?? []);
+		this.transport.setAuthenticated();
 		this._authState$.next({ kind: "authenticated" });
 		logger$9.debug("[Session] Authentication completed successfully");
 	}
 	async disconnect() {
 		this.transport.disconnect();
 		this._authState$.next({ kind: "unauthenticated" });
-		await this.cleanupStoredConnectionParams();
+		await this.teardownSessionState();
 	}
 	async createInboundCall(invite) {
 		const callSession = await this.createCall({
@@ -20040,7 +21132,7 @@ var ClientSessionManager = class extends Destroyable {
 				to: destinationURI,
 				...options
 			});
-			await (0, import_cjs$7.firstValueFrom)((0, import_cjs$7.race)(callSession.selfId$.pipe((0, import_cjs$7.filter)((id) => Boolean(id)), (0, import_cjs$7.take)(1), (0, import_cjs$7.timeout)(this.callCreateTimeout)), callSession.errors$.pipe((0, import_cjs$7.take)(1), (0, import_cjs$7.switchMap)((callError) => (0, import_cjs$7.throwError)(() => callError.error)))));
+			await awaitDialReady(callSession, DEFAULT_CALL_SIGNALING_TIMEOUT_MS);
 			this._calls$.next({
 				[`${callSession.id}`]: callSession,
 				...this._calls$.value
@@ -20093,11 +21185,22 @@ var ClientSessionWrapper = class {
 	get authenticated() {
 		return this.clientSessionManager.authenticated;
 	}
+	/**
+	* Whether the session is using a Client Bound SAT (DPoP). Sticky — set
+	* when the binding is established or restored from a resumed session's
+	* server authorization.
+	*/
+	get clientBound() {
+		return this.clientSessionManager.clientBound;
+	}
 	get signalingEvent$() {
 		return this.clientSessionManager.signalingEvent$;
 	}
 	get iceServers() {
 		return this.clientSessionManager.iceServers;
+	}
+	get callControl() {
+		return this.clientSessionManager.callControl;
 	}
 	async execute(request, options) {
 		return this.clientSessionManager.execute(request, options);
@@ -20295,7 +21398,7 @@ var DeviceTokenManager = class extends Destroyable {
 			await session.reauthenticate(tokenData.token, rpcProof, { clientBound: true });
 			updateCredential({ token: tokenData.token });
 			logger$7.info("[DeviceToken] Client Bound SAT activated successfully");
-			this._currentToken$.next(tokenData);
+			this.emitCurrentToken(tokenData);
 			return { activated: true };
 		} catch (error) {
 			logger$7.error("[DeviceToken] Failed to activate Client Bound SAT:", error);
@@ -20305,6 +21408,21 @@ var DeviceTokenManager = class extends Destroyable {
 				reason: "endpoint-failed"
 			};
 		}
+	}
+	/**
+	* Emit a freshly received token to the reactive pipeline, stamping an
+	* absolute `expires_at` when the response carried only `expires_in`.
+	* Resolving the expiry at RECEIVE time (not at read time) is what lets
+	* {@link refreshNowIfDue} detect due-ness on resume: a bare `expires_in`
+	* re-resolved later would always compute a full TTL from "now" and never
+	* cross the refresh buffer.
+	*/
+	emitCurrentToken(token) {
+		const stamped = token.expires_at ? token : {
+			...token,
+			expires_at: resolveExpiresAt(token)
+		};
+		this._currentToken$.next(stamped);
 	}
 	/**
 	* Returns true when the cached token has enough headroom before expiry to
@@ -20324,7 +21442,7 @@ var DeviceTokenManager = class extends Destroyable {
 			method: "POST",
 			uri: DEVICE_TOKEN_ENDPOINT
 		});
-		const response = await this.http.request({
+		const response = await this.http().request({
 			url: DEVICE_TOKEN_ENDPOINT,
 			...POST_PARAMS,
 			body: JSON.stringify({
@@ -20351,7 +21469,7 @@ var DeviceTokenManager = class extends Destroyable {
 			uri: DEVICE_REFRESH_ENDPOINT,
 			accessToken: currentToken
 		});
-		const response = await this.http.request({
+		const response = await this.http().request({
 			url: DEVICE_REFRESH_ENDPOINT,
 			...POST_PARAMS,
 			body: JSON.stringify({
@@ -20399,7 +21517,7 @@ var DeviceTokenManager = class extends Destroyable {
 			const currentToken = this.getCredential().token;
 			if (!currentToken) throw new TokenRefreshError("No current token available for refresh");
 			const newTokenData = await this.retryRefresh(session, currentToken, updateCredential);
-			this._currentToken$.next(newTokenData);
+			this.emitCurrentToken(newTokenData);
 		} catch (error) {
 			logger$7.error("[DeviceToken] Automatic Client Bound SAT refresh failed:", error);
 			this.errorHandler(error instanceof TokenRefreshError ? error : new TokenRefreshError("Automatic token refresh failed", error));
@@ -20424,6 +21542,22 @@ var DeviceTokenManager = class extends Destroyable {
 			}
 		}
 		throw lastError instanceof Error ? lastError : new TokenRefreshError("All refresh retries exhausted", lastError);
+	}
+	/**
+	* Force an immediate refresh when the cached Client Bound SAT is already
+	* past its refresh window. Called on resume from suspension where
+	* background-tab throttling can delay the reactive timer past the buffer.
+	* A no-op when no token is cached or it still has headroom; the normal
+	* {@link executeRefresh} guards (paused / in-progress / unauthenticated)
+	* still apply.
+	*/
+	refreshNowIfDue() {
+		const token = this._currentToken$.value;
+		if (!token) return;
+		if (resolveExpiresAt(token) * 1e3 - Date.now() <= DEVICE_TOKEN_REFRESH_BUFFER_MS) {
+			logger$7.debug("[DeviceToken] Resume: cached SAT past refresh window; refreshing now");
+			this.executeRefresh();
+		}
 	}
 	/**
 	* Stops the reactive refresh pipeline from firing. Use when the underlying
@@ -20476,6 +21610,7 @@ var CredentialRefreshCoordinator = class extends Destroyable {
 		this.deps = deps;
 		this._activating = false;
 		this._activationGeneration = 0;
+		this._developerRefreshInProgress = false;
 		if (dpopManager?.initialized) this._deviceTokenManager = (deps.deviceTokenManagerFactory ?? defaultDeviceTokenManagerFactory)(dpopManager, deps.http, (error) => deps.notifier.onError(error), () => deps.store.read());
 	}
 	/** True when the Client Bound SAT path is available (DPoP initialized). */
@@ -20494,28 +21629,120 @@ var CredentialRefreshCoordinator = class extends Destroyable {
 	* invokes `deps.onRefreshExhausted` so the orchestrator can disconnect.
 	*/
 	scheduleDeveloperRefresh(provider, expiresAt, attempt = 0) {
+		this._activeProvider = provider;
 		if (this._developerTimerId !== void 0) clearTimeout(this._developerTimerId);
 		const refreshInterval = attempt === 0 ? Math.max(expiresAt - Date.now() - CREDENTIAL_REFRESH_BUFFER_MS, 1e3) : Math.min(CREDENTIAL_REFRESH_RETRY_BASE_MS * Math.pow(2, attempt) * (.5 + Math.random() * .5), CREDENTIAL_REFRESH_MAX_DELAY_MS);
-		this._developerTimerId = setTimeout(async () => {
-			try {
-				if (!provider.refresh) throw new InvalidCredentialsError("Credential provider does not support refresh");
-				const newCredentials = await provider.refresh();
-				this.deps.store.write(newCredentials);
-				this.deps.store.persist(newCredentials);
-				logger$6.info("[Coordinator] Credentials refreshed successfully.");
-				if (newCredentials.expiry_at) this.scheduleDeveloperRefresh(provider, newCredentials.expiry_at, 0);
-			} catch (error) {
-				const nextAttempt = attempt + 1;
-				logger$6.error(`[Coordinator] Credential refresh failed (attempt ${nextAttempt}/${CREDENTIAL_REFRESH_MAX_RETRIES}):`, error);
-				this.deps.notifier.onError(error instanceof Error ? error : new Error(String(error), { cause: error }));
-				if (nextAttempt < CREDENTIAL_REFRESH_MAX_RETRIES) this.scheduleDeveloperRefresh(provider, expiresAt, nextAttempt);
-				else {
-					logger$6.error("[Coordinator] Credential refresh exhausted all retries. Disconnecting.");
-					this.deps.notifier.onError(new TokenRefreshError("Credential refresh failed after max retries"));
-					this.deps.notifier.onRefreshExhausted();
-				}
-			}
+		this._developerTimerId = setTimeout(() => {
+			this._developerTimerId = void 0;
+			this.executeDeveloperRefresh(provider, expiresAt, attempt);
 		}, refreshInterval);
+	}
+	/**
+	* Runs the developer-provided refresh once: mints a new credential, stores
+	* and persists it, reauthenticates the live session (via the notifier), and
+	* reschedules against the new expiry. On failure retries with backoff up to
+	* {@link CREDENTIAL_REFRESH_MAX_RETRIES}, then signals exhaustion.
+	*
+	* Shared by the scheduled timer tick and {@link forceRefreshIfDue}. The
+	* `_developerRefreshInProgress` guard prevents the two from overlapping.
+	*/
+	async executeDeveloperRefresh(provider, expiresAt, attempt) {
+		if (this._developerRefreshInProgress) {
+			logger$6.debug("[Coordinator] Developer refresh already in progress; skipping");
+			return;
+		}
+		this._developerRefreshInProgress = true;
+		try {
+			const newCredentials = await this.refreshCredential(provider);
+			this.deps.store.write(newCredentials);
+			this.deps.store.persist(newCredentials);
+			try {
+				await this.deps.notifier.onCredentialRefreshed(newCredentials);
+			} catch (reauthError) {
+				logger$6.warn("[Coordinator] onCredentialRefreshed rejected (non-fatal):", reauthError);
+			}
+			logger$6.info("[Coordinator] Credentials refreshed successfully.");
+			if (newCredentials.expiry_at) this.scheduleDeveloperRefresh(provider, newCredentials.expiry_at, 0);
+		} catch (error) {
+			const nextAttempt = attempt + 1;
+			logger$6.error(`[Coordinator] Credential refresh failed (attempt ${nextAttempt}/${CREDENTIAL_REFRESH_MAX_RETRIES}):`, error);
+			this.deps.notifier.onError(error instanceof Error ? error : new Error(String(error), { cause: error }));
+			if (nextAttempt < CREDENTIAL_REFRESH_MAX_RETRIES) this.scheduleDeveloperRefresh(provider, expiresAt, nextAttempt);
+			else {
+				logger$6.error("[Coordinator] Credential refresh exhausted all retries. Disconnecting.");
+				this.deps.notifier.onError(new TokenRefreshError("Credential refresh failed after max retries"));
+				this.deps.notifier.onRefreshExhausted();
+			}
+		} finally {
+			this._developerRefreshInProgress = false;
+		}
+	}
+	/**
+	* Force an immediate refresh when the current credential is already past its
+	* scheduled refresh window. Called on resume from suspension, where
+	* background-tab timer throttling can delay the armed refresh well past
+	* expiry, leaving the live session stale.
+	*
+	* Routes to whichever mechanism is armed: the developer timer if armed,
+	* otherwise the Client Bound SAT pipeline. A no-op when nothing is due.
+	*/
+	forceRefreshIfDue() {
+		if (this._developerTimerId !== void 0 && this._activeProvider) {
+			const expiry = this.deps.store.read().expiry_at;
+			if (expiry !== void 0 && Date.now() >= expiry - CREDENTIAL_REFRESH_BUFFER_MS) {
+				logger$6.debug("[Coordinator] Resume: credential past refresh window; forcing refresh");
+				clearTimeout(this._developerTimerId);
+				this._developerTimerId = void 0;
+				this.executeDeveloperRefresh(this._activeProvider, expiry, 0);
+			}
+			return;
+		}
+		this._deviceTokenManager?.refreshNowIfDue();
+	}
+	/**
+	* Sync the credential's expiry from the server-provided authorization (the
+	* `signalwire.connect` result). SATs are opaque JWE, so
+	* `fabric_subscriber.expires_at` is the authoritative expiry of the token
+	* the session actually connected with — the provider-reported `expiry_at`
+	* is only a hint (and may be wrong or absent). Corrects the stored
+	* credential and re-arms the developer refresh timer against the real
+	* deadline when the provider supports `refresh()`.
+	*/
+	syncExpiryFromAuthorization(authorization, provider) {
+		const expiresAtSec = authorization?.fabric_subscriber?.expires_at;
+		if (!expiresAtSec) return;
+		const expiryAt = expiresAtSec * 1e3;
+		const credential = this.deps.store.read();
+		if (credential.expiry_at === expiryAt) return;
+		logger$6.debug(`[Coordinator] Correcting credential expiry from server authorization: ${new Date(expiryAt).toISOString()}`);
+		const updated = {
+			...credential,
+			expiry_at: expiryAt
+		};
+		this.deps.store.write(updated);
+		this.deps.store.persist(updated);
+		if (provider?.refresh) this.scheduleDeveloperRefresh(provider, expiryAt);
+	}
+	/**
+	* Invoke `provider.refresh()` deduped against any concurrent developer
+	* refresh. Concurrent callers — the scheduled tick, a resume-forced refresh,
+	* and the orchestrator's -32003 recovery / reconnect re-mint — share one
+	* in-flight promise, so a provider backed by one-time-use rotating refresh
+	* tokens is never invoked twice in parallel.
+	*
+	* The caller owns applying the returned credential (store write, session
+	* reauth, rescheduling); this method only serializes the network call.
+	*/
+	async refreshCredential(provider) {
+		if (this._refreshInFlight) return this._refreshInFlight;
+		if (!provider.refresh) throw new InvalidCredentialsError("Credential provider does not support refresh");
+		const run = provider.refresh();
+		this._refreshInFlight = run;
+		const clear = () => {
+			if (this._refreshInFlight === run) this._refreshInFlight = void 0;
+		};
+		run.then(clear, clear);
+		return run;
 	}
 	/**
 	* Cancels any scheduled developer-provided refresh. Idempotent.
@@ -21036,6 +22263,7 @@ var WebSocketController = class WebSocketController extends Destroyable {
 	}
 	handleClose(_event) {
 		this.clearConnectionTimeout();
+		this.messageQueue = [];
 		if (this.shouldReconnect) {
 			this._status$.next("reconnecting");
 			this.scheduleReconnection();
@@ -21105,6 +22333,9 @@ var WebSocketController = class WebSocketController extends Destroyable {
 function isSignalwirePingRequest(value) {
 	return isJSONRPCRequest(value) && value.method === "signalwire.ping";
 }
+function isSignalwireConnectRequest(value) {
+	return isJSONRPCRequest(value) && value.method === "signalwire.connect";
+}
 
 //#endregion
 //#region src/managers/TransportManager.ts
@@ -21119,6 +22350,10 @@ var TransportManager = class extends Destroyable {
 		this.protocol$ = this.createReplaySubject(1);
 		this.isConnecting = false;
 		this.isConnected = false;
+		this.socketStatus = "disconnected";
+		this.sessionAuthenticated = false;
+		this.heldRequests = [];
+		this.serverPingWatch = 0;
 		this.ackEvent = () => {
 			return (0, import_cjs$2.tap)((message) => {
 				if (isSignalwireRequest(message)) try {
@@ -21134,6 +22369,7 @@ var TransportManager = class extends Destroyable {
 				if (isSignalwirePingRequest(message)) {
 					try {
 						logger$2.debug("[Transport] Received ping, sending pong", { pingId: message.id });
+						if (this.sessionAuthenticated) this.armServerPingWatchdog();
 						this.send(RPCPingResponse(message.id));
 					} catch (error) {
 						logger$2.error("[Transport] Failed to send ping response:", error);
@@ -21148,6 +22384,10 @@ var TransportManager = class extends Destroyable {
 				if (!isSignalwireRequest(message)) return true;
 				const eventChannel = message.params.event_channel;
 				if (!eventChannel) return true;
+				if (message.params.event_type.startsWith("conversation.")) {
+					logger$2.debug(`[Transport] Received conversation event: ${message.params.event_type} (event_channel: ${eventChannel})`);
+					return true;
+				}
 				const currentProtocol = this._currentProtocol;
 				if (!currentProtocol) return true;
 				if (!eventChannel.includes(currentProtocol)) {
@@ -21166,6 +22406,14 @@ var TransportManager = class extends Destroyable {
 		});
 		this.subscribeTo(this._webSocketConnections.errors$, (error) => {
 			this.onError?.(error);
+		});
+		this.subscribeTo(this._webSocketConnections.status$, (status) => {
+			this.socketStatus = status;
+			if (status !== "connected") {
+				this.sessionAuthenticated = false;
+				this.clearServerPingWatchdog();
+			}
+			if (status === "disconnected") this.heldRequests = [];
 		});
 		this.initialized$ = (0, import_cjs$2.defer)(() => (0, import_cjs$2.from)(this._init())).pipe((0, import_cjs$2.shareReplay)(1), (0, import_cjs$2.takeUntil)(this.destroyed$));
 		this._jsonRPCMessage$ = this._webSocketConnections.incomingMessages$.pipe((0, import_cjs$2.map)((event) => {
@@ -21194,6 +22442,9 @@ var TransportManager = class extends Destroyable {
 	}
 	get connectionStatus$() {
 		return this._webSocketConnections.status$;
+	}
+	get connectionStatus() {
+		return this.socketStatus;
 	}
 	async connect() {
 		if (this.isConnecting || this.isConnected) {
@@ -21239,16 +22490,45 @@ var TransportManager = class extends Destroyable {
 	}
 	async execute(request, options) {
 		this.send(request);
-		return new PendingRPC(request, this._jsonRPCResponse$, options).promise;
+		const pending = new PendingRPC(request, this._jsonRPCResponse$, options).promise;
+		pending.catch(() => {
+			this.heldRequests = this.heldRequests.filter((held) => held.id !== request.id);
+		});
+		return pending;
 	}
 	send(message) {
 		const payload = JSON.stringify(message);
+		if (isJSONRPCResponse(message)) {
+			if (this.socketStatus !== "connected") {
+				logger$2.debug("[Transport] Dropping response while disconnected", { id: message.id });
+				return;
+			}
+		} else if (!this.sessionAuthenticated && !isSignalwireConnectRequest(message)) {
+			this.heldRequests.push({
+				id: message.id,
+				payload
+			});
+			return;
+		}
 		this._outgoingMessages$.next(payload);
+	}
+	/**
+	* Called by the session when signalwire.connect succeeds on the current
+	* socket. Sends the requests held since the socket opened, in order.
+	*/
+	setAuthenticated() {
+		if (this.socketStatus !== "connected") return;
+		this.sessionAuthenticated = true;
+		this.armServerPingWatchdog();
+		const held = this.heldRequests;
+		this.heldRequests = [];
+		held.forEach(({ payload }) => this._outgoingMessages$.next(payload));
 	}
 	disconnect() {
 		logger$2.debug("[Transport] Disconnecting");
 		this.isConnected = false;
 		this.isConnecting = false;
+		this.clearServerPingWatchdog();
 		this._webSocketConnections.disconnect();
 	}
 	destroy() {
@@ -21256,6 +22536,28 @@ var TransportManager = class extends Destroyable {
 		this.disconnect();
 		super.destroy();
 		this._webSocketConnections.destroy();
+	}
+	armServerPingWatchdog() {
+		this.clearServerPingWatchdog();
+		const watch = this.serverPingWatch;
+		this.serverPingTimer = setTimeout(() => void this.probeServer(watch), SERVER_PING_TIMEOUT_MS);
+	}
+	/** Bumps the watch so a probe still in flight no longer acts on its result. */
+	clearServerPingWatchdog() {
+		clearTimeout(this.serverPingTimer);
+		this.serverPingTimer = void 0;
+		this.serverPingWatch += 1;
+	}
+	async probeServer(watch) {
+		logger$2.debug(`[Transport] No signalwire.ping for ${SERVER_PING_TIMEOUT_MS}ms, probing the server`);
+		try {
+			await this.execute(RPCPing(), { timeoutMs: SERVER_PING_PROBE_TIMEOUT_MS });
+			if (watch === this.serverPingWatch) this.armServerPingWatchdog();
+		} catch (error) {
+			if (watch !== this.serverPingWatch) return;
+			logger$2.warn("[Transport] Server did not answer the ping probe, replacing the socket", error);
+			this.reconnect();
+		}
 	}
 	async _loadProtocolFromStorage() {
 		try {
@@ -21295,6 +22597,13 @@ var TransportManager = class extends Destroyable {
 //#region src/clients/SignalWire.ts
 var import_cjs$1 = require_cjs();
 const logger$1 = getLogger();
+/**
+* Storage key for the client-bound marker. The SAT and authorization_state are
+* both opaque to the SDK, so on a page reload the preflight recovery — which
+* runs before any session exists — has no other way to know the session was
+* client-bound. See {@link SignalWire.persistClientBoundMarker}.
+*/
+const CLIENT_BOUND_STORAGE_KEY = "sw:client_bound";
 const buildOptionsFromDestination = (destination) => {
 	if (typeof destination === "string") {
 		const queryStartIndex = destination.indexOf("?");
@@ -21338,6 +22647,7 @@ var SignalWire = class extends Destroyable {
 		this.preferences = new ClientPreferences();
 		this._user$ = this.createBehaviorSubject(void 0);
 		this._directory$ = this.createBehaviorSubject(void 0);
+		this._credentialRecovered = false;
 		this._isConnected$ = this.createBehaviorSubject(false);
 		this._isRegistered$ = this.createBehaviorSubject(false);
 		this._errors$ = this.createReplaySubject(1);
@@ -21376,6 +22686,16 @@ var SignalWire = class extends Destroyable {
 		});
 	}
 	/**
+	* Build the refresh path's own HTTP controller, against whatever host is current.
+	*
+	* Called on first use rather than up front, so `apiHost` already reflects the
+	* token's `ch` claim. Same credential source as the container's controller — only
+	* the instance, and therefore its observable streams, is separate.
+	*/
+	createRefreshHttpController() {
+		return new HTTPRequestController(this._deps.apiHost, () => this._deps.credential);
+	}
+	/**
 	* Initializes DPoP if not already set up. Returns the fingerprint on success.
 	*/
 	async initDPoP() {
@@ -21402,11 +22722,19 @@ var SignalWire = class extends Destroyable {
 	async resolveCredentials() {
 		const fingerprint = await this.initDPoP();
 		this._refreshCoordinator = new CredentialRefreshCoordinator(this._dpopManager, {
-			http: this._deps.http,
+			http: () => {
+				if (!this._refreshHttp || this._refreshHttpHost !== this._deps.apiHost) {
+					this._refreshHttp?.destroy();
+					this._refreshHttp = this.createRefreshHttpController();
+					this._refreshHttpHost = this._deps.apiHost;
+				}
+				return this._refreshHttp;
+			},
 			notifier: {
 				onError: (error) => this._errors$.next(error),
 				onWarning: (warning) => this._warnings$.next(warning),
-				onRefreshExhausted: () => void this.disconnect()
+				onRefreshExhausted: () => void this.disconnect(),
+				onCredentialRefreshed: async (credential) => this.reauthenticateLiveSession(credential)
 			},
 			store: {
 				read: () => this._deps.credential,
@@ -21418,6 +22746,7 @@ var SignalWire = class extends Destroyable {
 						...this._deps.credential,
 						...partial
 					};
+					this.persistCredential(this._deps.credential);
 				},
 				persist: (credential) => this.persistCredential(credential)
 			}
@@ -21463,12 +22792,153 @@ var SignalWire = class extends Destroyable {
 		}
 		this._deps.credential = _credentials;
 		this.persistCredential(_credentials);
-		if (this.isConnected && this._clientSession.authenticated && _credentials.token) try {
-			await this._clientSession.reauthenticate(_credentials.token);
+		await this.reauthenticateLiveSession(_credentials);
+	}
+	/**
+	* Reauthenticate the currently-open session with a freshly obtained
+	* credential so the new token takes effect on the live socket immediately —
+	* not just on the next reconnect. No-op when the session is not
+	* connected/authenticated or the credential carries no token (e.g. an
+	* authorization-state-only refresh). Non-fatal: reauth failures surface on
+	* `errors$` without aborting the refresh that triggered this.
+	*/
+	async reauthenticateLiveSession(credential) {
+		if (!this.isConnected || !this._clientSession.authenticated || !credential.token) return;
+		try {
+			await this._clientSession.reauthenticate(credential.token);
 			logger$1.info("[SignalWire] Session refreshed with new credentials.");
 		} catch (error) {
 			logger$1.error("[SignalWire] Failed to refresh session with new credentials:", error);
 			this._errors$.next(error instanceof Error ? error : new Error(String(error), { cause: error }));
+		}
+	}
+	/**
+	* Recover a session the server is refusing: mint a fresh credential,
+	* reauthenticate the live session with it, and retry the operation.
+	*
+	* The connection is deliberately kept. A reload authenticates the new socket
+	* against the persisted `authorization_state`, and that handshake is what
+	* associates the socket with the previous session — the association reattach
+	* depends on. `signalwire.reauthenticate` swaps the credential *on that same
+	* session*, so recovery never touches the resume state. Discarding it would
+	* heal the credential by destroying the very thing the caller is trying to
+	* get back to.
+	*
+	* The operation is still the verdict, never the RPC. Reauthenticating with
+	* the in-memory token is accepted by a resume even while requests stay
+	* refused, because the persisted `authorization_state` short-circuits token
+	* validation — and `signalwire.reauthenticate` with a *freshly minted* token
+	* has also been observed accepted while `subscriber.online` keeps being
+	* refused (staging run 33826974634). Both look like success and are not.
+	*
+	* @returns the operation's value, or the reason recovery could not deliver
+	*   one. `error` is undefined when there was no way to mint at all.
+	*/
+	async recoverAndRetry(operation) {
+		if (!await this.remintAndReauthenticate()) return { ok: false };
+		try {
+			const value = await operation();
+			this._credentialRecovered = true;
+			return {
+				ok: true,
+				value
+			};
+		} catch (error) {
+			logger$1.warn("[SignalWire] Reauthentication was accepted but the operation is still refused:", error);
+			return {
+				ok: false,
+				error
+			};
+		}
+	}
+	/**
+	* Re-mint a credential and adopt it only if the live session accepts it.
+	*
+	* The mechanism follows the binding: a client-bound session re-mints a bound
+	* base SAT through `authenticate()` with the DPoP fingerprint, because the
+	* developer refresh handler would hand back an unbound token and silently
+	* degrade the session. An unbound session uses the refresh handler. Rotation
+	* cost is not a reason to skip this — the only reason is having no mechanism.
+	*
+	* @returns whether the session is now running on a freshly accepted credential.
+	*/
+	async remintAndReauthenticate() {
+		const provider = this._credentialProvider;
+		if (!provider) return false;
+		const { clientBound } = this._clientSession;
+		if (!clientBound && !provider.refresh) {
+			logger$1.debug("[SignalWire] [SW-NO-REFRESH-HANDLER] Unbound session with no refresh handler; cannot re-mint.");
+			return false;
+		}
+		try {
+			const newCredentials = clientBound ? await provider.authenticate(this._dpopManager?.initialized ? { fingerprint: this._dpopManager.fingerprint } : void 0) : await this.remintCredential(provider);
+			if (!newCredentials.token) {
+				logger$1.warn("[SignalWire] Re-minted credential has no token; keeping the current one.");
+				return false;
+			}
+			await this._clientSession.reauthenticate(newCredentials.token);
+			this._deps.credential = newCredentials;
+			this.persistCredential(newCredentials);
+			if (newCredentials.expiry_at && provider.refresh) this._refreshCoordinator?.scheduleDeveloperRefresh(provider, newCredentials.expiry_at);
+			return true;
+		} catch (error) {
+			logger$1.warn("[SignalWire] Re-mint recovery failed:", error);
+			return false;
+		}
+	}
+	/**
+	* Re-mint a credential via `provider.refresh()`, routed through the
+	* coordinator's shared in-flight guard so concurrent re-mint paths (a
+	* scheduled/resume refresh, -32003 recovery, and reconnect) never fire a
+	* second `provider.refresh()` in parallel — which rotating one-time-use
+	* refresh tokens reject. Falls back to a direct call only if the coordinator
+	* has not been constructed yet.
+	*/
+	async remintCredential(provider) {
+		if (this._refreshCoordinator) return this._refreshCoordinator.refreshCredential(provider);
+		if (!provider.refresh) throw new InvalidCredentialsError("Credential provider does not support refresh");
+		return provider.refresh();
+	}
+	/**
+	* Re-mint credentials before a fresh (re)connect (`onBeforeReconnect` hook).
+	* The session invokes this only when it is client-bound OR the in-memory
+	* token is expired. The re-mint mechanism depends on the binding:
+	*   - Client-bound: `authenticate()` with the DPoP fingerprint to obtain a
+	*     fresh base SAT the upcoming reconnect can re-bind (the
+	*     DeviceTokenManager re-activates afterwards).
+	*   - Unbound: the developer's non-interactive `refresh()` handler.
+	*     `authenticate()` is deliberately NOT used here — it may be interactive
+	*     (a login prompt) and must not fire on a background reconnect.
+	*
+	* Rejects on failure so the session aborts the reconnect rather than
+	* replaying a stale token.
+	*/
+	async refreshCredentialForReconnect() {
+		if (!this._credentialProvider) return;
+		try {
+			let newCredentials;
+			if (this._clientSession?.clientBound ?? await this.wasClientBound()) {
+				logger$1.debug("[SignalWire] Re-minting client-bound base SAT before reconnect");
+				newCredentials = await this._credentialProvider.authenticate(this._dpopManager?.initialized ? { fingerprint: this._dpopManager.fingerprint } : void 0);
+			} else if (this._credentialProvider.refresh) {
+				logger$1.debug("[SignalWire] Refreshing unbound credential before reconnect");
+				newCredentials = await this.remintCredential(this._credentialProvider);
+			} else {
+				logger$1.warn("[SignalWire] [SW-NO-REFRESH-HANDLER] Token expired on reconnect but no refresh handler; reconnecting with the existing token.");
+				return;
+			}
+			if (!newCredentials.token) {
+				logger$1.warn("[SignalWire] Re-minted credential has no token; keeping the existing credential for reconnect.");
+				return;
+			}
+			this._deps.credential = newCredentials;
+			this.persistCredential(newCredentials);
+			if (newCredentials.expiry_at && this._credentialProvider.refresh) this._refreshCoordinator?.scheduleDeveloperRefresh(this._credentialProvider, newCredentials.expiry_at);
+			logger$1.debug("[SignalWire] Credential refreshed successfully for reconnect");
+		} catch (error) {
+			logger$1.error("[SignalWire] Failed to refresh credentials for reconnect:", error);
+			this._errors$.next(error instanceof Error ? error : new Error(String(error), { cause: error }));
+			throw error;
 		}
 	}
 	/** Persist credential to localStorage when persistSession is enabled. */
@@ -21476,6 +22946,26 @@ var SignalWire = class extends Destroyable {
 		if (!credential.token) return;
 		this._deps.storage.setItem("sw:cached_credential", credential);
 		if (this._deps.persistSession) this._deps.storage.setItem("sw:cached_credential", credential, "local");
+	}
+	/**
+	* Persist whether the session is client-bound, mirroring the credential's
+	* storage scopes so it survives a reload. The preflight recovery reads it
+	* before any session exists to decide whether to re-bind via `authenticate()`
+	* or refresh an unbound token; the marker tracks the latest binding, so an
+	* unbound reconnect clears a stale marker from an earlier client-bound login.
+	*/
+	persistClientBoundMarker(bound) {
+		const scopes = this._deps.persistSession ? ["session", "local"] : ["session"];
+		for (const scope of scopes) if (bound) this._deps.storage.setItem(CLIENT_BOUND_STORAGE_KEY, true, scope);
+		else this._deps.storage.removeItem(CLIENT_BOUND_STORAGE_KEY, scope);
+	}
+	/** Read the persisted client-bound marker (see {@link persistClientBoundMarker}). */
+	async wasClientBound() {
+		const scopes = this._deps.persistSession ? ["local", "session"] : ["session"];
+		for (const scope of scopes) try {
+			if (await this._deps.storage.getItem(CLIENT_BOUND_STORAGE_KEY, scope)) return true;
+		} catch {}
+		return false;
 	}
 	async init() {
 		this._user$.next(new User(this._deps.http));
@@ -21500,6 +22990,42 @@ var SignalWire = class extends Destroyable {
 		} catch (error) {
 			logger$1.error("[SignalWire] Failed to reattach calls:", error);
 			this._errors$.next(error instanceof Error ? error : new Error(String(error), { cause: error }));
+		} finally {
+			this._credentialRecovered = false;
+		}
+	}
+	/**
+	* Fetch the authenticated user profile, recovering a stale credential.
+	*
+	* On a reload the persisted credential can be expired. Unlike the WS resume —
+	* which the server accepts against the persisted `authorization_state` even
+	* with an expired token — this REST preflight has no such short-circuit and is
+	* refused (401). There is no session yet to reauthenticate, so recovery
+	* re-mints the credential through the provider ({@link refreshCredentialForReconnect})
+	* and retries with a FRESH {@link User}: Fetchable memoizes its result
+	* (shareReplay), so reusing the instance would replay the 401 instead of
+	* re-fetching with the new token. Without the user id the transport/session —
+	* and the reattach a reload is trying to preserve — cannot even be addressed.
+	*/
+	async fetchUserOrRecover() {
+		const fetchUser = async (user$1) => {
+			if (!await (0, import_cjs$1.firstValueFrom)(user$1.fetched$)) throw new UnexpectedError("Failed to fetch user information - fetched$ emitted false");
+			this._deps.user = user$1;
+		};
+		const user = this._user$.value;
+		if (!user) throw new UnexpectedError("User not initialized before connect");
+		try {
+			await fetchUser(user);
+		} catch (firstError) {
+			logger$1.error(`[SignalWire] Failed to fetch user information: ${firstError instanceof Error ? firstError.message : "Unknown error"}. This usually means the user token is invalid or expired. Re-minting the credential and retrying.`);
+			try {
+				await this.refreshCredentialForReconnect();
+				const refetched = new User(this._deps.http);
+				await fetchUser(refetched);
+				this._user$.next(refetched);
+			} catch (retryError) {
+				throw new UnexpectedError("Error fetching user information", { cause: retryError });
+			}
 		}
 	}
 	/**
@@ -21541,41 +23067,25 @@ var SignalWire = class extends Destroyable {
 	*/
 	async connect() {
 		await this.teardownTransportAndSession();
-		try {
-			const user = this._user$.value;
-			if (!user) throw new UnexpectedError("User not initialized before connect");
-			if (!await (0, import_cjs$1.firstValueFrom)(user.fetched$)) throw new UnexpectedError("Failed to fetch user information - fetched$ emitted false");
-			this._deps.user = user;
-		} catch (error) {
-			logger$1.error(`[SignalWire] Failed to fetch user information: ${error instanceof Error ? error.message : "Unknown error"}. This usually means the user token is invalid or expired.`);
-			throw new UnexpectedError("Error fetching user information", { cause: error });
-		}
+		await this.fetchUserOrRecover();
 		const errorHandler = (error) => {
 			this._errors$.next(error);
 		};
 		this._transport = new TransportManager(this._deps.storage, this._deps.protocolKey, this._deps.WebSocket, PreferencesContainer.instance.relayHost ?? this._deps.relayHost, errorHandler);
-		this._attachManager = new AttachManager(this._deps.storage, this._deps.deviceController, PreferencesContainer.instance.reconnectCallsTimeout, this._deps.attachedCallsKey);
+		this._attachManager = new AttachManager(this._deps.storage, this._deps.deviceController, PreferencesContainer.instance.reconnectCallsTimeout, this._deps.attachedCallsKey, () => this._credentialRecovered);
 		this._clientSession = new ClientSessionManager(() => this._deps.credential, this._transport, this._deps.storage, this._deps.authorizationStateKey, this._deps.deviceController, this._attachManager, this._deps.webRTCApiProvider, this._dpopManager, this._networkMonitor?.networkChange$);
 		this._publicSession = new ClientSessionWrapper(this._clientSession);
-		this._clientSession.onBeforeReconnect = async () => {
-			if (!this._credentialProvider) return;
-			try {
-				const fingerprint = this._dpopManager?.initialized ? this._dpopManager.fingerprint : void 0;
-				logger$1.debug("[SignalWire] Credential expired, refreshing before reconnect");
-				const newCredentials = await this._credentialProvider.authenticate(fingerprint ? { fingerprint } : void 0);
-				this._deps.credential = newCredentials;
-				if (newCredentials.expiry_at && this._credentialProvider.refresh) this._refreshCoordinator?.scheduleDeveloperRefresh(this._credentialProvider, newCredentials.expiry_at);
-				logger$1.debug("[SignalWire] Credential refreshed successfully for reconnect");
-			} catch (error) {
-				logger$1.error("[SignalWire] Failed to refresh credentials for reconnect:", error);
-				this._errors$.next(error instanceof Error ? error : new Error(String(error), { cause: error }));
-				throw error;
-			}
-		};
+		this._clientSession.callControl = this._options.callControl ?? "routed";
+		this._clientSession.onBeforeReconnect = async () => this.refreshCredentialForReconnect();
 		this.subscribeTo(this._clientSession.errors$, (error) => {
 			this._errors$.next(error);
 		});
+		this.subscribeTo(this._clientSession.authorization$, (authorization) => {
+			this._refreshCoordinator?.syncExpiryFromAuthorization(authorization, this._credentialProvider);
+			this.persistClientBoundMarker(Boolean(authorization?.cnf?.jkt));
+		});
 		await this._clientSession.connect();
+		this._clientSession.onAuthenticationRejected = () => void this.disconnect();
 		await this._refreshCoordinator?.activate(this._deps.user, this._clientSession);
 		this.subscribeTo(this._clientSession.authenticated$.pipe((0, import_cjs$1.skip)(1), (0, import_cjs$1.filter)(Boolean)), async () => {
 			try {
@@ -21737,6 +23247,13 @@ var SignalWire = class extends Destroyable {
 		}
 		try {
 			this._visibilityController = new VisibilityController();
+			this.subscribeTo(this._visibilityController.visibilityChange$.pipe((0, import_cjs$1.filter)((event) => event.to === "visible")), () => {
+				try {
+					this._refreshCoordinator?.forceRefreshIfDue();
+				} catch (error) {
+					logger$1.warn("[SignalWire] Resume credential revalidation failed (non-fatal):", error);
+				}
+			});
 			this.subscribeTo(this._visibilityController.visibilityChange$.pipe((0, import_cjs$1.filter)((event) => event.to === "visible" && PreferencesContainer.instance.refreshDevicesOnVisible)), () => {
 				logger$1.debug("[SignalWire] Page visible, re-enumerating devices");
 				try {
@@ -21748,13 +23265,21 @@ var SignalWire = class extends Destroyable {
 			logger$1.warn("[SignalWire] Failed to initialize VisibilityController:", error);
 		}
 		try {
-			this._diagnosticsCollector = new DiagnosticsCollector({ sdkVersion: "4.0.0-rc.0" });
+			this._diagnosticsCollector = new DiagnosticsCollector({ sdkVersion: "4.0.0-rc.5" });
 		} catch (error) {
 			logger$1.warn("[SignalWire] Failed to initialize DiagnosticsCollector:", error);
 		}
 	}
 	/**
 	* Disconnects the WebSocket and tears down the current session.
+	*
+	* Ends the session identified by the protocol and clears its persisted
+	* resume state (`authorization_state` + protocol) and attach records
+	* together — a later {@link connect} with the same credentials starts a
+	* fresh session and cannot reattach to the ended session's calls.
+	* Credentials and device preferences are preserved. To temporarily stop
+	* receiving inbound calls while keeping the session alive, use
+	* `unregister()` instead.
 	*
 	* The client can be reconnected by calling {@link connect} again,
 	* which creates a fresh transport and session.
@@ -21811,21 +23336,22 @@ var SignalWire = class extends Destroyable {
 				this._errors$.next(error instanceof Error ? error : new Error(String(error), { cause: error }));
 				throw error;
 			}
-			logger$1.debug("[SignalWire] Failed to register user, trying reauthentication...");
-			try {
-				await this._clientSession.reauthenticate(this._deps.credential.token);
-				logger$1.debug("[SignalWire] Reauthentication successful, retrying register()");
+			logger$1.debug("[SignalWire] Failed to register user, attempting credential recovery...");
+			const outcome = await this.recoverAndRetry(async () => {
 				await this._transport.execute(RPCExecute({
 					method: "subscriber.online",
 					params: {}
 				}));
+			});
+			if (outcome.ok) {
+				logger$1.debug("[SignalWire] Recovery restored registration");
 				this._isRegistered$.next(true);
-			} catch (reauthError) {
-				logger$1.error("[SignalWire] Reauthentication failed during register():", reauthError);
-				const registerError = new InvalidCredentialsError("Failed to register user, and reauthentication attempt also failed. Please check your credentials.", { cause: reauthError instanceof Error ? reauthError : new Error(String(reauthError), { cause: reauthError }) });
-				this._errors$.next(registerError);
-				throw registerError;
+				return;
 			}
+			const failureCause = outcome.error ?? error;
+			const registerError = new InvalidCredentialsError("Failed to register user, and credential recovery also failed. Please check your credentials.", { cause: failureCause instanceof Error ? failureCause : new Error(String(failureCause), { cause: failureCause }) });
+			this._errors$.next(registerError);
+			throw registerError;
 		}
 	}
 	/**
@@ -21856,6 +23382,11 @@ var SignalWire = class extends Destroyable {
 	* Returns a {@link Call} in `'ringing'` state. Subscribe to {@link Call.status$}
 	* to track progression through `'connected'` → `'disconnected'`.
 	*
+	* Local media acquisition is deliberately unbounded: an unanswered permission
+	* prompt leaves this promise pending indefinitely, so apply your own bound if
+	* your UI needs one. The 12 s signaling budget starts only once acquisition
+	* settles.
+	*
 	* @param destination - Address URI string (e.g. `'/public/my-room'`) or {@link Address} instance.
 	* @param options - Media and dial options (audio/video, device constraints). Overrides defaults.
 	* @returns The created {@link Call} instance.
@@ -21878,7 +23409,18 @@ var SignalWire = class extends Destroyable {
 		};
 		await this.waitAuthentication();
 		logger$1.debug("[SignalWire] Dialing with options:", computed_options);
-		return this._clientSession.createOutboundCall(destination, computed_options);
+		try {
+			return await this._clientSession.createOutboundCall(destination, computed_options);
+		} catch (error) {
+			if (!isRecoverableAuthError(error)) throw error;
+			logger$1.debug("[SignalWire] Dial hit a recoverable auth error; recovering the session and retrying");
+			const outcome = await this.recoverAndRetry(async () => {
+				await this.waitAuthentication();
+				return this._clientSession.createOutboundCall(destination, computed_options);
+			});
+			if (outcome.ok) return outcome.value;
+			throw outcome.error ?? error;
+		}
 	}
 	/**
 	* Runs a multi-phase connectivity test against the given destination.
@@ -22147,14 +23689,25 @@ var SignalWire = class extends Destroyable {
 		prefs.preferredVideoInput = null;
 		await this._deviceController.clearDeviceState();
 	}
-	/** Destroys the client, clearing timers and releasing all resources. */
+	/**
+	* Destroys the client, clearing timers and releasing all resources.
+	*
+	* Intentionally destroying the client ends its session: the resume state
+	* (`authorization_state` + protocol) and the attach records are both
+	* cleared. Credentials and device preferences are preserved — use
+	* {@link resetToDefaults} for a full wipe. To temporarily stop receiving
+	* inbound calls while keeping the session alive, use `unregister()`.
+	*/
 	destroy() {
 		this._refreshCoordinator?.destroy();
 		this._refreshCoordinator = void 0;
+		this._refreshHttp?.destroy();
+		this._refreshHttp = void 0;
 		this._dpopManager?.destroy();
-		if (this._attachManager) this._attachManager.detachAll();
-		this._transport.destroy();
-		this._clientSession.destroy();
+		const session = this._clientSession;
+		session?.teardownSessionState();
+		this._transport?.destroy();
+		session?.destroy();
 		try {
 			this._networkMonitor?.destroy();
 		} catch {}
@@ -22267,7 +23820,7 @@ var StaticCredentialProvider = class {
 /**
 * Library version from package.json, injected at build time.
 */
-const version = "4.0.0-rc.0";
+const version = "4.0.0-rc.5";
 /**
 * Flag indicating the library has been loaded and is ready to use.
 * For UMD builds: `window.SignalWire.ready`
@@ -22289,7 +23842,7 @@ const ready = true;
 */
 const emitReadyEvent = () => {
 	if (typeof window !== "undefined") {
-		const event = new CustomEvent("signalwire:js:ready", { detail: { version: "4.0.0-rc.0" } });
+		const event = new CustomEvent("signalwire:js:ready", { detail: { version: "4.0.0-rc.5" } });
 		window.dispatchEvent(event);
 	}
 };
@@ -22314,19 +23867,25 @@ if (typeof process === "undefined") globalThis.process = { env: { NODE_ENV: "pro
 
 //#endregion
 exports.Address = Address;
+exports.AuxiliaryLegCancelledError = AuxiliaryLegCancelledError;
+exports.AuxiliaryLegTimeoutError = AuxiliaryLegTimeoutError;
 exports.CallCreateError = CallCreateError;
+exports.CallNotReadyError = CallNotReadyError;
 exports.ClientPreferences = ClientPreferences;
 exports.CollectionFetchError = CollectionFetchError;
 exports.DPoPInitError = DPoPInitError;
 exports.DeviceTokenError = DeviceTokenError;
 exports.EmbedTokenCredentialProvider = EmbedTokenCredentialProvider;
 exports.InvalidCredentialsError = InvalidCredentialsError;
+exports.MediaAccessError = MediaAccessError;
 exports.MediaTrackError = MediaTrackError;
 exports.MessageParseError = MessageParseError;
 exports.OverconstrainedFallbackError = OverconstrainedFallbackError;
 exports.Participant = Participant;
+exports.ParticipantNotReadyError = ParticipantNotReadyError;
 exports.PreflightError = PreflightError;
 exports.RecoveryError = RecoveryError;
+exports.ScreenShareAlreadyActiveError = ScreenShareAlreadyActiveError;
 exports.SelfCapabilities = SelfCapabilities;
 exports.SelfParticipant = SelfParticipant;
 exports.SignalWire = SignalWire;
