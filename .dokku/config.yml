@@ -48,8 +48,11 @@ environments:
     resources:
       memory: 1g
       cpu: 2
+    # One replica: the chosen voice is stored on the dyno's own disk (app.py),
+    # so a second replica serves half the calls without it. Raising this needs
+    # that store moved somewhere both replicas can read.
     scale:
-      web: 2
+      web: 1
 
   staging:
     resources:

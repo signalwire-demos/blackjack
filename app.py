@@ -5,6 +5,8 @@ An AI-powered blackjack dealer that plays casino-style blackjack via voice/video
 Uses stateless architecture with centralized state management
 """
 
+import hashlib
+import hmac
 import json
 import random
 import os
@@ -68,6 +70,22 @@ for _vf in _VOICE_FILES:
     except Exception as _e:      # a missing vendor file just shrinks the allowlist
         print(f"Could not load {_vf}: {_e}", flush=True)
 _known_voices.add(DEFAULT_VOICE)
+
+
+def _swaig_secret():
+    """Key this agent signs its SWAIG function tokens with.
+
+    - Unset, the SDK generates a random one per process: a token minted by one
+      replica fails on another, and a redeploy breaks calls still in flight.
+    - Derived from values every replica already has, so there is nothing to set
+      and nothing for a config reset to wipe.
+    - APP_NAME keeps it distinct per app; rotating the API token rotates it.
+    """
+    token = os.environ.get("SIGNALWIRE_TOKEN", "")
+    if not token:
+        return None  # No secret input: leave the SDK's own fallback in place.
+    label = f"swaig-token-signing:{os.environ.get('APP_NAME', 'blackjack')}"
+    return hmac.new(token.encode(), label.encode(), hashlib.sha256).hexdigest()
 
 
 def is_known_voice(voice):
@@ -175,7 +193,8 @@ class BlackjackDealer(AgentBase):
         super().__init__(
             name="Dealer",
             route="/blackjack",
-            record_call=True
+            record_call=True,
+            swaig_secret=_swaig_secret(),
         )
         
         # Set up dealer personality
