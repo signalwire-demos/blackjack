@@ -9,9 +9,12 @@ import json
 import random
 import os
 import re
+import sqlite3
+import tempfile
 import time
 import threading
 import warnings
+from contextlib import closing
 from pathlib import Path
 from signalwire import AgentBase, AgentServer
 from signalwire.core.function_result import SwaigFunctionResult
@@ -77,14 +80,25 @@ def is_known_voice(voice):
 # shared slot matters: with a single global, one player's pick would change the
 # voice of a call already in progress for someone else.
 #
-# DEPLOYMENT: this map is in-process, so /get_token and the SWML render have to be
-# served by the SAME worker. Run a single worker - `WEB_CONCURRENCY=1` in the
-# environment is enough, gunicorn reads it without touching the image. With more
-# than one worker the two requests can land on different processes, the lookup
-# misses, and the call quietly uses DEFAULT_VOICE instead of the chosen voice.
-# It degrades rather than errors, which makes it easy to misdiagnose as a UI bug.
-_voice_by_guest = {}
+# The two requests can land on different processes, so the binding is kept in
+# SQLite rather than memory: an in-process dict made this correct only under a
+# single worker, and every way of pinning that (a --workers flag, WEB_CONCURRENCY,
+# a gunicorn config file, ps:scale) can be overridden by whoever deploys it. The
+# failure was silent -- a missed lookup just uses DEFAULT_VOICE -- so it read as
+# a UI bug. One row per guest, written once per call: concurrency here is a few
+# writes a minute, which SQLite handles without ceremony.
+_VOICE_DB = os.environ.get(
+    "VOICE_STORE_DB", str(Path(tempfile.gettempdir()) / "blackjack_voices.db"))
 _GUEST_VOICE_TTL = 2 * 3600
+
+
+def _voice_db():
+    """Open the store, creating it on first use. WAL so a read never blocks a write."""
+    conn = sqlite3.connect(_VOICE_DB, timeout=5)
+    conn.execute("pragma journal_mode=wal")
+    conn.execute("create table if not exists guest_voice ("
+                 "guest_id text primary key, voice text not null, set_at real not null)")
+    return conn
 _GUEST_RE = re.compile(
     r"guest-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I)
 
@@ -110,15 +124,31 @@ def set_voice_for_guest(guest_id, voice):
     if not guest_id or not voice:
         return
     now = time.time()
-    _voice_by_guest[guest_id.lower()] = (voice, now)
-    for gid in [g for g, (_v, ts) in _voice_by_guest.items()
-                if now - ts > _GUEST_VOICE_TTL]:
-        _voice_by_guest.pop(gid, None)
+    try:
+        with closing(_voice_db()) as conn, conn:
+            conn.execute(
+                "insert into guest_voice (guest_id, voice, set_at) values (?, ?, ?) "
+                "on conflict(guest_id) do update set voice = excluded.voice, set_at = excluded.set_at",
+                (guest_id.lower(), voice, now))
+            conn.execute("delete from guest_voice where set_at < ?", (now - _GUEST_VOICE_TTL,))
+    except sqlite3.Error as e:
+        # Say so rather than degrade quietly: the call still works, on DEFAULT_VOICE.
+        print(f"Voice store write failed ({_VOICE_DB}): {e}", flush=True)
 
 
 def get_voice_for_guest(guest_id):
-    entry = _voice_by_guest.get((guest_id or "").lower())
-    return entry[0] if entry else None
+    """The pick for this guest, or None once it is older than the TTL."""
+    if not guest_id:
+        return None
+    try:
+        with closing(_voice_db()) as conn:
+            row = conn.execute(
+                "select voice from guest_voice where guest_id = ? and set_at >= ?",
+                (guest_id.lower(), time.time() - _GUEST_VOICE_TTL)).fetchone()
+    except sqlite3.Error as e:
+        print(f"Voice store read failed ({_VOICE_DB}): {e}", flush=True)
+        return None
+    return row[0] if row else None
 
 # Plain-language definitions for blackjack vocabulary the player may not know.
 GLOSSARY = {
