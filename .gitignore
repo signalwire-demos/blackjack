@@ -1,5 +1,9 @@
 # Environment
+# .env.* too: a per-deployment file (.env.staging, .env.production) is the same
+# secret as .env, and only the example belongs in the repo.
 .env
+.env.*
+!.env.example
 .venv/
 venv/
 __pycache__/
